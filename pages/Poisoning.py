@@ -84,7 +84,7 @@ def load_model_and_data():
     # Load model
     model = CNN().to(device)
     try:
-        model.load_state_dict(torch.load("Practice/Streamlitapp/pages/mnist_cnn_pytorch.pth", map_location=device))
+        model.load_state_dict(torch.load("pages/mnist_cnn_pytorch.pth", map_location=device))
     except FileNotFoundError:
         st.warning("⚠️ Model file not found. Using randomly initialized model for demo.")
     model.eval()
