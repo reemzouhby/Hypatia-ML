@@ -62,12 +62,12 @@ def show_time_warning(attack_type, parameters=None):
             "color": "error",
             "advice": "💡 **Tip**: Use max_iter=10-20 for testing. L∞ is faster than L2. Consider coffee break! ☕"
         },
-        "Elastic Net": {
+        "ElasticNet": {
             "time": "⏰ Very Slow (~45 minutes - 2 hours)",
             "color": "error",
             "advice": "💡 **Tip**: Reduce max_iter to 10-20 and binary_search_steps to 5-7 for faster results!"
         },
-        "Boundry Attack": {
+        "Boundary Attack": {
             "time": "🕐 Moderate (~10-20 minutes)",
             "color": "warning",
             "advice": "💡 **Tip**: Keep max_iter under 100 and increase delta (0.02-0.05) for faster convergence!"
@@ -82,7 +82,7 @@ def show_time_warning(attack_type, parameters=None):
             "color": "warning",
             "advice": "💡 **Tip**: Use smaller gamma values (0.05-0.1) and batch_size=32 for faster processing!"
         },
-        "Hopskijump": {
+        "HopSkijump": {
             "time": "🕐 Moderate (~10-25 minutes)",
             "color": "warning",
             "advice": "💡 **Tip**: Reduce max_eval to 2000-3000 and max_iter to 30-50 for faster results!"
@@ -108,7 +108,7 @@ def show_time_warning(attack_type, parameters=None):
             if parameters.get("L_Type") == "L2":
                 st.warning("📝 **Note**: L2 variant is slower than L∞. Consider L∞ for faster results.")
 
-        elif attack_type == "Elastic Net" and parameters:
+        elif attack_type == "ElasticNet" and parameters:
             if parameters.get("max_iter", 20) > 30 or parameters.get("binary_search_steps", 10) > 10:
                 st.error("🚨 **Warning**: High iterations detected! This may take 2+ hours!")
 
@@ -123,144 +123,159 @@ def show_time_warning(attack_type, parameters=None):
 
 
 def run_attacks(attack_type, parameters):
+    # Subset sizes for speed
     subset_sizes = {
         "fast_attacks": 1000,  # FGSM, PGD, BIM
-        "medium_attacks": 500,  # DeepFool, Boundry
+        "medium_attacks": 500,  # DeepFool, Boundary, NewtonFool, JSMA, HopSkipJump
         "slow_attacks": 20  # C&W, ElasticNet
     }
+
     if attack_type in ["FGSM", "PGD", "BIM"]:
         subset_size = subset_sizes["fast_attacks"]
-    elif attack_type in ["DeepFool", "Boundry Attack", "NewtonFool", "JSMA", "Hopskijump"]:
+    elif attack_type in ["DeepFool", "Boundary Attack", "NewtonFool", "JSMA", "HopSkipJump"]:
         subset_size = subset_sizes["medium_attacks"]
     else:
         subset_size = subset_sizes["slow_attacks"]
 
     x_test_small = test_images[:subset_size]
     y_test_small = test_labels[:subset_size]
-    if attack_type == "FGSM":
-        attack = FastGradientMethod(estimator=classifier, targeted=parameters.get('targeted', False),
-                                    eps=parameters["eps"])
-        x_test_adv = attack.generate(x=test_images)
-    elif attack_type == "PGD":
-        attack = ProjectedGradientDescent(estimator=classifier, eps_step=0.03, eps=parameters["eps"],
-                                          max_iter=parameters["max_iter"],
-                                          random_eps=parameters["random_eps"],
-                                          targeted=parameters.get('targeted', False), batch_size=100)
-    elif attack_type == "BIM":
-        attack = BasicIterativeMethod(estimator=classifier, targeted=parameters.get('targeted', False), eps_step=0.03,
-                                      eps=parameters["eps"], max_iter=10)  # eps  small
-    elif attack_type == "DeepFool":
 
-        attack = DeepFool(classifier, max_iter=parameters["max_iter"], epsilon=parameters["eps"], batch_size=100)
-    elif attack_type == "C&W":
-        if parameters["L_Type"] == "L2":
-            attack = CarliniL2Method(classifier, max_iter=1000, targeted=parameters.get('targeted', False),
-                                     learning_rate=parameters["learning_rate"], confidence=parameters["confidence"],
-                                     batch_size=100)
-        elif parameters["L_Type"] == "L∞":
-            attack = CarliniLInfMethod(classifier, targeted=parameters.get('targeted', False),
-                                       max_iter=parameters["max_iter"], batch_size=100,
-                                       confidence=parameters["confidence"])
-        else:
-            attack = CarliniL0Method(classifier, targeted=parameters.get('targeted', False),
-                                     max_iter=parameters["max_iter"], confidence=parameters["confidence"],
-                                     learning_rate=parameters["learning_rate"])
-    elif attack_type == "Elastic Net":
-        attack = ElasticNet(classifier=classifier, confidence=parameters["confidence"],
-                            targeted=parameters.get('targeted', False), learning_rate=0.01, binary_search_steps=9,
-                            max_iter=parameters["max_iter"], beta=0.001, initial_const=0.001, batch_size=1,
-                            decision_rule=parameters["decision_rule"], verbose=True)  # eps  small
-    elif attack_type == "Boundry Attack":
-        attack = BoundaryAttack(estimator=classifier,
-                                targeted=parameters.get('targeted', False),
-                                max_iter=parameters["max_iter"],  # iterations
-                                delta=parameters["delta"],
-                                epsilon=parameters["eps"],
-                                verbose=True)
-    elif attack_type == "JSMA":
-        attack = SaliencyMapMethod(
-            classifier=classifier,
-            theta=parameters["theta"],
-            gamma=parameters["gamma"],
-            batch_size=parameters["batch_size"],
-            verbose=True
-        )
-
-
-    elif attack_type == "NewtonFool":
-        attack = NewtonFool(
-            classifier=classifier,
-            max_iter=parameters["max_iter"],
-            batch_size=parameters["batch_size"]
-        )
-        x_adv = attack.generate(x=x_test_small)
-
-    elif attack_type == "HopSkipJump":
-        norm_map = {"L2": 2, "L∞": np.inf, "L1": 1}
-        selected_norm = norm_map[parameters["norm"]]
-        attack = HopSkipJump(
-            classifier=classifier,
-            max_iter=parameters["max_iter"],
-            max_eval=parameters["max_eval"],
-            norm=selected_norm,
-            init_eval=parameters["init_eval"],
-            batch_size=parameters["batch_size"],
-            targeted=parameters.get("targeted", False)
-        )
-
+    # Handle targeted attacks
     if parameters.get("targeted", False):
         target_class = parameters.get("target_class", 5)
         target_labels = np.full((subset_size,), target_class)
         target_labels_one_hot = to_categorical(target_labels, nb_classes=10)
-        x_adv = attack.generate(x=x_test_small, y=target_labels_one_hot)
+        y_for_attack = target_labels_one_hot
     else:
-        x_adv = attack.generate(x=x_test_small)
+        y_for_attack = None
+
+    # Initialize attack
+    if attack_type == "FGSM":
+        attack = FastGradientMethod(estimator=classifier, eps=parameters["eps"], targeted=parameters.get("targeted", False))
+    elif attack_type == "PGD":
+        attack = ProjectedGradientDescent(estimator=classifier,
+                                          eps_step=0.03,
+                                          eps=parameters["eps"],
+                                          max_iter=parameters["max_iter"],
+                                          random_eps=parameters["random_eps"],
+                                          targeted=parameters.get("targeted", False),
+                                          batch_size=100)
+    elif attack_type == "BIM":
+        attack = BasicIterativeMethod(estimator=classifier,
+                                      eps_step=0.03,
+                                      eps=parameters["eps"],
+                                      max_iter=parameters["max_iter"],
+                                      targeted=parameters.get("targeted", False))
+    elif attack_type == "DeepFool":
+        attack = DeepFool(classifier=classifier,
+                          max_iter=parameters["max_iter"],
+                          epsilon=parameters["eps"],
+                          batch_size=100)
+    elif attack_type == "C&W":
+        if parameters["L_Type"] == "L2":
+            attack = CarliniL2Method(classifier,
+                                     max_iter=parameters["max_iter"],
+                                     targeted=parameters.get("targeted", False),
+                                     learning_rate=parameters["learning_rate"],
+                                     confidence=parameters["confidence"],
+                                     batch_size=100)
+        elif parameters["L_Type"] == "L∞":
+            attack = CarliniLInfMethod(classifier,
+                                       max_iter=parameters["max_iter"],
+                                       targeted=parameters.get("targeted", False),
+                                       confidence=parameters["confidence"],
+                                       batch_size=100)
+        else:  # L0
+            attack = CarliniL0Method(classifier,
+                                     max_iter=parameters["max_iter"],
+                                     targeted=parameters.get("targeted", False),
+                                     learning_rate=parameters["learning_rate"],
+                                     confidence=parameters["confidence"])
+    elif attack_type == "ElasticNet":
+        attack = ElasticNet(classifier,
+                            confidence=parameters["confidence"],
+                            targeted=parameters.get("targeted", False),
+                            learning_rate=parameters["learning_rate"],
+                            binary_search_steps=parameters["binary_search_steps"],
+                            max_iter=parameters["max_iter"],
+                            beta=0.001,
+                            initial_const=0.001,
+                            batch_size=1,
+                            decision_rule=parameters["decision_rule"],
+                            verbose=True)
+    elif attack_type == "Boundary Attack":
+        attack = BoundaryAttack(classifier,
+                                targeted=parameters.get("targeted", False),
+                                max_iter=parameters["max_iter"],
+                                delta=parameters["delta"],
+                                epsilon=parameters["eps"],
+                                verbose=True)
+    elif attack_type == "JSMA":
+        attack = SaliencyMapMethod(classifier,
+                                   theta=parameters["theta"],
+                                   gamma=parameters["gamma"],
+                                   batch_size=parameters["batch_size"],
+                                   verbose=True)
+    elif attack_type == "NewtonFool":
+        attack = NewtonFool(classifier,
+                            max_iter=parameters["max_iter"],
+                            batch_size=parameters["batch_size"])
+    elif attack_type == "HopSkipjump":
+        norm_map = {"L2": 2, "L∞": np.inf, "L1": 1}
+        selected_norm = norm_map[parameters["norm"]]
+        attack = HopSkipJump(classifier,
+                             max_iter=parameters["max_iter"],
+                             max_eval=parameters["max_eval"],
+                             init_eval=parameters["init_eval"],
+                             norm=selected_norm,
+                             batch_size=parameters["batch_size"],
+                             targeted=parameters.get("targeted", False))
+    else:
+        st.error("Attack type not implemented!")
+        return
+
+    # Generate adversarial examples
+    x_adv = attack.generate(x=x_test_small, y=y_for_attack)
+
+    # Evaluate
     loss_clean, acc_clean = model.evaluate(x_test_small, y_test_small, verbose=0)
     loss_adv, acc_adv = model.evaluate(x_adv, y_test_small, verbose=0)
+
     pred_clean = np.argmax(model.predict(x_test_small), axis=1)
     pred_adv = np.argmax(model.predict(x_adv), axis=1)
 
-    correct_clean = np.sum(pred_clean == y_test_small)
-    correct_adv = np.sum(pred_adv == y_test_small)
-    if (acc_clean, acc_adv):
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Clean Accuracy", f"{acc_clean:.3f}", f"{acc_clean * 100:.1f}%")
-        with col2:
-            st.metric("Adversarial Accuracy", f"{acc_adv:.3f}", f"{acc_adv * 100:.1f}%")
-        with col3:
-            accuracy_drop = (acc_clean - acc_adv) * 100
-            st.metric("Accuracy Drop", f"{accuracy_drop:.1f}%", f"-{accuracy_drop:.1f}%")
+    # Display metrics
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Clean Accuracy", f"{acc_clean:.3f}", f"{acc_clean * 100:.1f}%")
+    with col2:
+        st.metric("Adversarial Accuracy", f"{acc_adv:.3f}", f"{acc_adv * 100:.1f}%")
+    with col3:
+        st.metric("Accuracy Drop", f"{(acc_clean - acc_adv) * 100:.1f}%", f"-{(acc_clean - acc_adv) * 100:.1f}%")
 
+    # Plot clean vs adversarial
     fig, axes = plt.subplots(2, 10, figsize=(15, 4))
     for i in range(10):
-        # Clean image - FIXED: Use x_test_small[i] instead of y_test_small[i]
         axes[0, i].imshow(x_test_small[i].reshape(28, 28), cmap="gray")
-        axes[0, i].set_title(
-            f"C:{pred_clean[i]}\nT:{y_test_small[i]}",
-            color=("blue" if pred_clean[i] == y_test_small[i] else "red"),
-            fontsize=8
-        )
+        axes[0, i].set_title(f"C:{pred_clean[i]}\nT:{y_test_small[i]}",
+                              color=("blue" if pred_clean[i] == y_test_small[i] else "red"),
+                              fontsize=8)
         axes[0, i].axis("off")
 
-        # Adversarial image
         axes[1, i].imshow(x_adv[i].reshape(28, 28), cmap="gray")
-        axes[1, i].set_title(
-            f"A:{pred_adv[i]}\nT:{y_test_small[i]}",
-            color=("blue" if pred_adv[i] == y_test_small[i] else "red"),
-            fontsize=8
-        )
+        axes[1, i].set_title(f"A:{pred_adv[i]}\nT:{y_test_small[i]}",
+                              color=("blue" if pred_adv[i] == y_test_small[i] else "red"),
+                              fontsize=8)
         axes[1, i].axis("off")
 
     axes[0, 0].set_ylabel("Clean", fontsize=10)
     axes[1, 0].set_ylabel("Adv", fontsize=10)
     fig.suptitle("Clean Images vs Adversarial Images", fontsize=14)
     plt.tight_layout()
-
-    # Show plot in Streamlit
     st.pyplot(fig)
 
     return acc_clean, acc_adv, x_adv
+
 
 
 st.set_page_config(
@@ -285,21 +300,21 @@ attack_mode = st.sidebar.radio(
 # Untarget --> fgsm ,pgd, deepfool, bim
 attack_mode_type = st.sidebar.radio("Attack Type:", ["White-box", "Black-box"])
 if attack_mode_type == "White-box":
-    available_attacks = ["FGSM", "PGD", "BIM", "DeepFool", "C&W", "Elastic Net", "NewtonFool", "JSMA"]
+    available_attacks = ["FGSM", "PGD", "BIM", "DeepFool", "C&W", "ElasticNet", "NewtonFool", "JSMA"]
 else:
-    available_attacks = ["Boundary Attack", "Hopskijump"]
+    available_attacks = ["Boundary Attack", "HopSkijump"]
 
 if (attack_mode == "Target"):
     if attack_mode_type == "White-box":
-        available_attacks = ["FGSM", "PGD", "BIM", "C&W", "Elastic Net", "JSMA", "NewtonFool"]
+        available_attacks = ["FGSM", "PGD", "BIM", "C&W", "ElasticNet", "JSMA", "NewtonFool"]
     else:
-        available_attacks = ["Boundry Attack", "Hopskijump"]
+        available_attacks = ["Boundary Attack", "HopSkijump"]
     st.sidebar.info("Target attacks try to fool the model into a specific target class")
 else:
     if attack_mode_type == "White-box":
-        available_attacks = ["FGSM", "PGD", "BIM", "DeepFool", "C&W", "Elastic Net", "NewtonFool"]
+        available_attacks = ["FGSM", "PGD", "BIM", "DeepFool", "C&W", "ElasticNet", "NewtonFool"]
     else:
-        available_attacks = ["Boundry Attack", "Hopskijump"]
+        available_attacks = ["Boundary Attack", "HopSkijump"]
 
     st.sidebar.info(" Untarget attacks try to fool the model into any incorrect prediction")
 attack_type = st.sidebar.selectbox("Select the type of ATtack ", options=available_attacks)
@@ -309,10 +324,12 @@ st.sidebar.subheader(attack_type + "Parameters")
 # now if target show a select box of nb of target nb
 parameters = {}
 if (attack_mode == "Target"):
-    parameters["Targeted"] = True
-    parameters["Target_class"] = st.sidebar.selectbox("Choose the nb ", options=range(10),
-                                                      help="The class you want the model to misclassify images as"
-                                                      )
+    parameters["targeted"] = True
+    parameters["target_class"] = st.sidebar.selectbox(
+        "Choose the target class", options=range(10),
+        help="The class you want the model to misclassify images as"
+    )
+
 if (attack_type == "FGSM"):
     # parameters nly epsi
     parameters["eps"] = st.sidebar.slider("Enter epsilon for FGSM ATTACK", min_value=0.0, max_value=2.0, step=0.01,
@@ -388,7 +405,7 @@ if (attack_type == "C&W"):
             min_value=0.0, max_value=50.0, value=0.0, step=1.0,
             help="Confidence parameter - higher values make attack stronger"
         )
-if attack_type == "Elastic Net":
+if attack_type == "ElasticNet":
     parameters["learning_rate"] = st.sidebar.slider(
         "Learning Rate",
         min_value=0.001, max_value=0.1, value=0.01, step=0.001,
@@ -407,7 +424,7 @@ if attack_type == "Elastic Net":
     )
     parameters["decision_rule"] = st.sidebar.selectbox("Choose the Decision Rules ", options=["L1", "L2", "EN"],
                                                        index=2)
-if attack_type == "Boundry Attack":
+if attack_type == "Boundary Attack":
     parameters["max_iter"] = st.sidebar.slider(
         "Max Iterations",
         10, 200, 50, 10,
@@ -432,7 +449,7 @@ if attack_type == "NewtonFool":
     parameters["max_iter"] = st.sidebar.slider("Max Iterations", 10, 100, 50, 10)
     parameters["batch_size"] = st.sidebar.slider("Batch size", 1, 128, 64, 1)
 
-if attack_type == "Hopskijump":
+if attack_type == "HopSkijump":
     parameters["max_iter"] = st.sidebar.slider("Max Iterations", 10, 100, 50, 10)
     parameters["max_eval"] = st.sidebar.slider("Max Evaluations", 1000, 20000, 5000, 100)
     parameters["init_eval"] = st.sidebar.slider("Initial Evaluations", 10, 500, 50, 10)
