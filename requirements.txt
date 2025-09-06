@@ -1,12 +1,10 @@
 streamlit
 tensorflow
-keras
 torch
 torchvision
-numpy
-pandas
-matplotlib
-Pillow
-absl-py
-scikit-learn
 adversarial-robustness-toolbox
+matplotlib
+pandas
+scikit-learn
+seaborn
+opencv-python-headless
