@@ -1,183 +1,225 @@
 # 🧠 HYPATIA - Adversarial Machine Learning Testing Platform
+<div align="center">
+
 ![Python](https://img.shields.io/badge/python-3.10-blue)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.28-orange)
 [![ART](https://img.shields.io/badge/ART-Adversarial%20Robustness%20Toolbox-blue)](https://github.com/Trusted-AI/adversarial-robustness-toolbox)
+
 [![Live Demo](https://img.shields.io/badge/Live-Demo-blue?style=for-the-badge&logo=streamlit)](https://hypatia-ml-app.streamlit.app/)
 
+</div>
 
->*"Reserve your right to think, for even to think wrongly is better than not to think at all."*
->**— Hypatia of Alexandria**
+---
 
-Named after **Hypatia of Alexandria**, the renowned ancient mathematician, astronomer, and philosopher, this platform embodies her spirit of rigorous inquiry and fearless pursuit of knowledge. Just as Hypatia challenged conventional thinking in her time, **HYPATIA** challenges your machine learning models to reveal their vulnerabilities and strengthen their defenses against adversarial threats.
-## 🌟 Overview
 
-HYPATIA is a comprehensive adversarial machine learning testing platform built with Streamlit that provides researchers and practitioners with tools to evaluate ML model robustness through systematic adversarial testing. The platform supports four major categories of attacks across multiple threat models.
-**Model & Dataset Used in the App:**
+## 🌟 About HYPATIA
 
-* Model: CNN (Neural Network)
+> *"Reserve your right to think, for even to think wrongly is better than not to think at all."*  
+> **— Hypatia of Alexandria**
 
-* Dataset: MNIST
+Named after **Hypatia of Alexandria**, the renowned ancient mathematician, astronomer, and philosopher, this platform embodies her spirit of rigorous inquiry and fearless pursuit of knowledge. Just as Hypatia challenged conventional thinking in her time, **HYPATIA** challenges your machine learning models to reveal their vulnerabilities and strengthen their defenses.
 
-**All attacks in the platform are applied to this model and dataset unless specified otherwise (e.g., SVM-specific attacks).**
-## 🌐 Live Demo
+**HYPATIA** is a comprehensive adversarial machine learning testing platform that provides researchers and practitioners with powerful tools to evaluate ML model robustness through systematic adversarial testing. Built with Streamlit, it offers an intuitive interface for conducting sophisticated security assessments across multiple threat models.
 
-Try HYPATIA online via Streamlit: [https://hypatia-ml-app.streamlit.app/](https://hypatia-ml-app.streamlit.app/)
+### 🎯 **Platform Specifications**
+- **Model:** Convolutional Neural Network (CNN)
+- **Dataset:** MNIST handwritten digits
+- **Coverage:** 4 major attack categories with 20+ attack variants
+- **Interface:** Web-based Streamlit application
 
-## ✨ Features
-![This is an alt text.](https://adversarial-robustness-toolbox.readthedocs.io/en/latest/_images/adversarial_threats_attacker.png)
+---
+
+## 🌐 Try HYPATIA Online
+
+**Live Demo:** [https://hypatia-ml-app.streamlit.app/](https://hypatia-ml-app.streamlit.app/)
+
+Experience the full power of adversarial testing without any installation required.
+
+---
+
+## 🚀 What HYPATIA Can Do
+
+<div align="center">
+
+![Adversarial Threats](https://adversarial-robustness-toolbox.readthedocs.io/en/latest/_images/adversarial_threats_attacker.png)
+
+</div>
+
+HYPATIA provides a comprehensive suite of adversarial testing tools across four critical security dimensions:
+
+| Attack Category | Purpose | Impact |
+|----------------|---------|--------|
+| 🎯 **Evasion** | Test inference-time robustness | Model misclassification |
+| ☠️ **Poisoning** | Evaluate training data security | Compromised model behavior |
+| 🕵️ **Inference** | Assess privacy vulnerabilities | Information leakage |
+| 🔓 **Extraction** | Test model stealing resilience | Intellectual property theft |
+
+---
+
 **Hypatia** provides a comprehensive suite of adversarial testing tools to help you:
 
 ## **🎯Evasion Attacks**
 Test model robustness against adversarial examples designed to fool classifiers at inference time.
 
-**⚪White-box Attacks:**
+#### ⚪ **White-box Attacks**
+- **Full model access** (architecture, parameters, gradients)
+- **High success rate**
+- **Computationally efficient**
+- **Realistic for insider threats**
 
-Attacker has **full access** to the model (architecture, parameters, gradients).
-
-**⚫ Black-box Attacks:**
-
-Attacker can **only query** the model (no internal details).
-
-**White-box Attacks:**
-- **FGSM** (Fast Gradient Sign Method) - Single-step gradient-based attack
-- **PGD** (Projected Gradient Descent) - Iterative adversarial attack
-- **BIM** (Basic Iterative Method) - Multi-step variant of FGSM  
-- **DeepFool** - Minimal perturbation attack
-- **C&W** (Carlini & Wagner) - Optimization-based attack with L0, L2, L∞ variants
-- **ElasticNet** - Sparse adversarial attack
-- **NewtonFool** - Newton-based attack method
-- **JSMA** (Jacobian-based Saliency Map Attack) - Targeted pixel manipulation
-
-**Black-box Attacks:**
-- **Boundary Attack** - Decision boundary exploration
-- **HopSkipJump** - Query-efficient boundary attack
-
-**📌 Targeted vs Untargeted**
-
-**Untargeted:** The goal is just to make the model misclassify into any wrong class.
-Example: Turning a “3” into anything except “3”.
-
-**Targeted:** The adversary tries to force the model to misclassify into a specific target class.
-Example: Turning a “3” into exactly a “7”.
-### 🎯 Attack Categories
-
-The following table summarizes which attacks are **white-box/black-box** and whether they support **targeted** or **untargeted** modes:
-
-| Attack              | White-box | Black-box | Untargeted | Targeted |
-|---------------------|:---------:|:---------:|:----------:|:--------:|
-| **FGSM**            | ✅        | ❌        | ✅         | ✅       |
-| **PGD**             | ✅        | ❌        | ✅         | ✅       |
-| **BIM**             | ✅        | ❌        | ✅         | ✅       |
-| **DeepFool**        | ✅        | ❌        | ✅         | ❌       |
-| **NewtonFool**      | ✅        | ❌        | ✅         | ❌       |
-| **C&W (L0, L2, L∞)**| ✅        | ❌        | ✅         | ✅       |
-| **ElasticNet**      | ✅        | ❌        | ✅         | ✅       |
-| **JSMA**            | ✅        | ❌        | ❌         | ✅       |
-| **Boundary Attack** | ❌        | ✅        | ✅         | ✅       |
-| **HopSkipJump**     | ❌        | ✅        | ✅         | ✅       |
-
-✅ = Supported  
-❌ = Not supported
+#### ⚫ **Black-box Attacks**
+- **Query-only access** (no internal details)
+- **More realistic threat model**
+- **Requires more queries**
+- **Harder to detect and defend**
 
 
-## ☠️ **Poisoning Attacks**
-**A poisoning attack** targets **the training phase** of a machine learning model. Instead of manipulating inputs at inference time (like evasion), the attacker **injects malicious samples** into the training data. These poisoned samples cause the model to learn in a way that reduces accuracy or biases predictions in favor of the attacker’s goal.
-| Attack              |  Targeted / Untargeted| Description  |
-|---------------------|:---------:|:----------:|
-| **Backdoor Attack**            |   Targeted   | Adds **a specific patch or trigger** to some training samples so that the model will misclassify any test sample containing the same trigger into a chosen target class.      
-| **Clean-label Backdoor**       | Targeted       | Similar to backdoor, but uses **correctly labeled samples**. Poisoning is subtle and harder to detect, making the model learn the backdoor without obvious mislabeled examples.   
-| **Gradient Matching Attack**   | Targeted      | Chooses poison samples so that their **gradients match those of a target sample**, forcing the model to misclassify the target into a desired class.       
-| **Feature Collision Attack**  | Targeted | Generates poisoned samples that **collide in feature space with a target sample**, causing the model to misclassify the target sample into a specific base class.   
-| **Poisoning SVM Attack**      | Untargeted  | Designed for **two selected MNIST digits.** Modifies training points **to shift the SVM decision boundary**, reducing overall accuracy without targeting a specific misclassification.
-#### Patch Types for Backdoor Attacks
 
-**For Backdoor and Clean-Label Backdoor attacks**, poisoned samples include a **patch or trigger**. HYPATIA supports three patch styles:
+### 🎯 **Targeting Strategies**
 
- * **Square patch:** Solid square applied to a corner or center.
+| Strategy | Goal | Example |
+|----------|------|---------|
+| **Untargeted** | Force any misclassification | Turn "3" into anything except "3" |
+| **Targeted** | Force specific misclassification | Turn "3" into exactly "7" |
 
-* **Pattern patch:** Checkerboard-like repeated pattern.
+### 📊 **Available Attacks**
 
-* **Pixel patch:** Random individual pixels altered.
+#### **White-box Methods**
+| Attack | Type | Targeted | Untargeted | Description |
+|--------|------|:--------:|:----------:|-------------|
+| **FGSM** | Single-step | ✅ | ✅ | Fast gradient-based perturbations |
+| **PGD** | Iterative | ✅ | ✅ | Projected gradient descent optimization |
+| **BIM** | Multi-step | ✅ | ✅ | Basic iterative FGSM variant |
+| **DeepFool** | Minimal | ❌ | ✅ | Smallest perturbation to decision boundary |
+| **C&W** | Optimization | ✅ | ✅ | Advanced L0, L2, L∞ norm attacks |
+| **ElasticNet** | Sparse | ✅ | ✅ | Sparse adversarial perturbations |
+| **NewtonFool** | Newton-based | ❌ | ✅ | Second-order optimization method |
+| **JSMA** | Saliency | ✅ | ❌ | Jacobian-based pixel manipulation |
 
-These patches are what the model learns to associate with the target class during training, enabling the backdoor attack.
+#### **Black-box Methods**
+| Attack | Type | Targeted | Untargeted | Description |
+|--------|------|:--------:|:----------:|-------------|
+| **Boundary Attack** | Decision boundary | ✅ | ✅ | Explores classification boundaries |
+| **HopSkipJump** | Query-efficient | ✅ | ✅ | Advanced boundary exploration |
+
+---
+
+## ☠️ Poisoning Attacks
+
+**Poisoning attacks** compromise models during training by injecting malicious samples into the training dataset, causing models to learn incorrect behaviors or hidden backdoors.
+
+### 🎯 **Attack Types**
+
+| Attack | Strategy | Target | Description |
+|--------|----------|---------|-------------|
+| **Backdoor Attack** | Targeted | Specific trigger | Embeds hidden triggers that cause misclassification |
+| **Clean-label Backdoor** | Targeted | Subtle poisoning | Uses correctly labeled samples for stealthy backdoors |
+| **Gradient Matching** | Targeted | Gradient alignment | Matches poison gradients with target sample gradients |
+| **Feature Collision** | Targeted | Feature space | Forces feature space collisions for misclassification |
+| **SVM Poisoning** | Untargeted | Decision boundary | Shifts SVM boundaries to reduce overall accuracy |
+
+### 🔧 **Backdoor Trigger Options**
+
+HYPATIA supports multiple patch styles for backdoor attacks:
+
+| Patch Type | Description | Visibility |
+|------------|-------------|------------|
+| **Square** | Solid square patches | High visibility, reliable trigger |
+| **Pattern** | Checkerboard designs | Medium visibility, pattern-based |
+| **Pixel** | Random pixel alterations | Low visibility, subtle trigger |
+
+---
 
 ## 🕵️ Inference Attacks
 
-**Inference attacks** target the **trained model** to extract sensitive information about the training data rather than modifying it. HYPATIA implements three main inference attacks on the CNN trained on MNIST:
+**Inference attacks** exploit trained models to extract sensitive information about training data, threatening privacy without modifying the model or data.
 
-| Attack Type             | Description | Parameters / Options |
-|--------------------------|------------|--------------------|
-| **Membership Inference** | Determines if a specific data sample was part of the training dataset. | - **Normal Model** vs **Shadow Model**<br>- Black-box or Decision Boundary methods<br>- Attack classifier: NN, SVM, RF, GB, DT, KNN<br>- Decision thresholds: Supervised / Unsupervised |
-| **Attribute Inference**  | Infers hidden or sensitive attributes of a sample, e.g., missing pixel values. | - Target feature (pixel index 0–783)<br>- Continuous / discrete feature<br>- Attack model epochs<br>- Training subset size |
-| **Model Inversion**      | Attempts to reconstruct training samples from model outputs. | - Initialization image: None, Black, White, Gray, Random<br>- Target digits (0–9)<br>- Max iterations & threshold for convergence |
+### 🔍 **Attack Categories**
 
-**Evaluation Metrics:**  
+#### **Membership Inference**
+Determines if specific samples were used in model training.
 
-- **Membership Inference:** Accuracy for members, non-members, and overall attack success.  
-- **Attribute Inference:** Mean Absolute Error (MAE) and Mean Squared Error (MSE) for predicted attributes.  
-- **Model Inversion:** Visual reconstruction of target samples with predicted labels.  
+**Configuration Options:**
+- **Model Types:** Normal vs Shadow models
+- **Attack Methods:** Black-box, Decision Boundary
+- **Classifiers:** Neural Network, SVM, Random Forest, Gradient Boosting, Decision Tree, KNN
+- **Thresholds:** Supervised/Unsupervised decision boundaries
 
-**Severity Levels (Membership / Attribute Inference):**  
+#### **Attribute Inference**  
+Infers hidden or sensitive attributes from partial information.
 
-| Overall Accuracy / MAE | Severity | Notes |
-|------------------------|---------|------|
-| ≥ 0.75 / < 0.05        | 🔴 Critical | Strong privacy leakage; urgent mitigation required |
-| 0.65–0.75 / 0.05–0.10 | 🟠 High | Model vulnerable; apply privacy defenses |
-| 0.58–0.65 / 0.10–0.20 | 🟡 Moderate | Some vulnerability; consider adding noise or dropout |
-| 0.53–0.58 / 0.20–0.30 | 🔵 Weak | Minimal threat; model fairly robust |
-| < 0.53 / ≥ 0.30        | 🟢 Failed | Strong privacy protection; negligible leakage |
+**Configuration Options:**
+- **Target Features:** Any pixel position (0-783)
+- **Feature Types:** Continuous/Discrete values
+- **Training Parameters:** Epochs, subset sizes
+- **Attack Models:** Configurable neural networks
 
-**Notes:**  
-- These attacks demonstrate how model outputs can reveal information about training data even without modifying it.  
-- The app allows configuring each attack with flexible parameters to explore different privacy threats.
-## 🔓 Extraction (Model Stealing) Attacks
+#### **Model Inversion**
+Reconstructs training samples from model outputs.
 
-**Extraction attacks** aim to replicate a target model’s behavior by training a substitute (stolen) model that mimics the victim’s predictions. Unlike evasion or poisoning, extraction attacks **do not modify the training or test data of the victim model**; they leverage queries and outputs to reconstruct functionality.
+**Configuration Options:**
+- **Initialization:** None, Black, White, Gray, Random images
+- **Targets:** Specific digits (0-9)
+- **Convergence:** Max iterations and thresholds
 
-HYPATIA supports three main extraction attacks:
+### 📈 **Privacy Risk Assessment**
 
-| Attack Type                           | Description |
-|--------------------------------------|------------|
-| **CopyCatCNN**                        | 🔍 Creates a substitute model by querying the target model with synthetic or external data and training a neural network to replicate its predictions and decision boundaries. Supports probability-based output for better fidelity. |
-| **Functionally Equivalent Extraction** | ⚡ Extracts model functionality without replicating internal structure. Focuses on achieving similar input-output behavior using a dense neural network, even if architecture differs. |
-| **Knockoff Nets**                      | 🎯 Advanced model stealing using adversarial perturbations and transfer learning to create functional copies with minimal queries to the target model. Supports adaptive sampling and reward strategies to maximize stolen model performance. |
+| Accuracy/MAE | Risk Level | Action Required |
+|--------------|------------|-----------------|
+| ≥ 0.75 / < 0.05 | 🔴 **Critical** | Urgent mitigation required |
+| 0.65-0.75 / 0.05-0.10 | 🟠 **High** | Apply privacy defenses |
+| 0.58-0.65 / 0.10-0.20 | 🟡 **Moderate** | Consider noise/dropout |
+| 0.53-0.58 / 0.20-0.30 | 🔵 **Weak** | Monitor and assess |
+| < 0.53 / ≥ 0.30 | 🟢 **Safe** | Strong privacy protection |
 
-### ⚙️ Parameters and Options
+---
 
-**CopyCatCNN**
-- Dataset for querying: MNIST Test Set, CIFAR-10, Fashion-MNIST
-- Batch size for training and query
-- Number of epochs
-- Number of samples to steal
-- Probability output toggle
+## 🔓 Model Extraction Attacks
 
-**Functionally Equivalent Extraction**
-- Number of neurons in dense substitute model
-- Delta values for iterative extraction
-- Fraction of true labels used
-- Relative difference slope and value
-- Maximum delta value
+**Extraction attacks** create functional copies of target models by querying them strategically, enabling intellectual property theft and creating substitute models for further attacks.
 
-**Knockoff Nets**
-- Dataset for querying: MNIST Test Set, CIFAR-10, Fashion-MNIST
-- Batch size for training and query
-- Number of epochs
-- Number of samples to steal
-- Probability output toggle
-- Sampling strategy: random / adaptive
-- Reward strategy: certainty (cert), diversity (div), loss-based (loss), combination (all)
+### 🎯 **Extraction Methods**
 
-### 📊 Evaluation Metrics
+#### **CopyCatCNN**
+🔍 **Query-based replication** using synthetic data to train substitute models.
 
-- **Original Accuracy:** Accuracy of the victim model on test set  
-- **Stolen Accuracy:** Accuracy of the stolen model on test set  
-- **Fidelity:** Percentage of test predictions where stolen model matches the original model  
+**Features:**
+- Multiple query datasets (MNIST, CIFAR-10, Fashion-MNIST)
+- Probability-based outputs for higher fidelity
+- Configurable batch sizes and training epochs
 
-**Note:** The app allows configuring each attack with flexible parameters and datasets to explore different model stealing scenarios. Visual metrics and success rates are displayed after each attack to measure effectiveness.
+#### **Functionally Equivalent Extraction**
+⚡ **Behavior-focused copying** without replicating internal structure.
+
+**Features:**
+- Dense neural network architecture
+- Iterative extraction with delta parameters
+- Adaptive relative difference slopes
+
+#### **Knockoff Nets**
+🎯 **Advanced adversarial extraction** with minimal queries.
+
+**Features:**
+- Transfer learning integration
+- Adaptive sampling strategies
+- Multiple reward functions (certainty, diversity, loss-based)
+
+### 📊 **Evaluation Metrics**
+
+| Metric | Description | Significance |
+|--------|-------------|--------------|
+| **Original Accuracy** | Victim model performance | Baseline comparison |
+| **Stolen Accuracy** | Substitute model performance | Extraction quality |
+| **Fidelity** | Agreement between models | Functional similarity |
+
+---
+
 ## 🚀 Quick Start
 ### Prerequisites
 
 - Python 3.8 or higher
+- 8GB+ RAM recommended
+- CUDA support (optional, for GPU acceleration)
 ### Installation
 
 1. **Clone the repository**
@@ -230,14 +272,26 @@ You should see output like:
   Local URL: http://localhost:8501
   Network URL: http://192.168.1.xxx:8501
 ```
-## 📖 Usage
+---
 
-1. Select the type of attack from the sidebar.
+## 📖 Using HYPATIA
 
-2. Configure attack parameters.
+### 🎮 **Basic Workflow**
 
-3. Click Run Attack to see results like accuracy drop and fidelity metrics.
+1. **Select Attack Category** from the sidebar menu
+2. **Configure Parameters** using the intuitive controls
+3. **Run Attack** and observe real-time progress
+4. **Analyze Results** with detailed metrics and visualizations
+5. **Export Data** for further analysis (optional)
 
+### 🎯 **Best Practices**
+
+- **Start with simple attacks** (FGSM) before advanced methods
+- **Compare multiple attack types** for comprehensive assessment
+- **Document parameters** used for reproducible results
+- **Monitor resource usage** for large-scale experiments
+
+---
 ## 🤝 Contributing
 
 We welcome contributions to expand HYPATIA's capabilities! You can contribute by:
@@ -248,6 +302,19 @@ We welcome contributions to expand HYPATIA's capabilities! You can contribute by
 4. **Optimizing Performance** – Speed up attack execution and reduce memory usage.
 
 To contribute, please fork the repository, make your changes, and submit a pull request. You can also open an issue for suggestions or bugs.
+
+
+### 📝 **How to Contribute**
+
+1. **Fork** the repository
+2. **Create** a feature branch
+3. **Implement** your changes
+4. **Test** thoroughly
+5. **Submit** a pull request
+
+
+
+---
 ## 🔗 References
 
 [Adversarial Robustness Toolbox (ART)](https://adversarial-robustness-toolbox.readthedocs.io/en/latest/)
@@ -255,6 +322,10 @@ To contribute, please fork the repository, make your changes, and submit a pull 
 [Adversarial Robustness Toolbox (ART) GitHub](https://github.com/Trusted-AI/adversarial-robustness-toolbox)
 
 [Supporting materials](Supporting_material.bib)
+   
+
+
+   ---
 
 ## 🙏 Acknowledgments
 
@@ -266,8 +337,15 @@ To contribute, please fork the repository, make your changes, and submit a pull 
 For questions or suggestions, you can open an issue on GitHub or reach out directly.
 
 
+---
 
+<div align="center">
 
+**Built with ❤️ for the adversarial machine learning community**
+
+*Empowering researchers to build more robust and secure AI systems*
+
+</div>
 
 
 
