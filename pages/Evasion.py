@@ -25,8 +25,9 @@ from art.estimators.classification import KerasClassifier
 test_images = test_images.reshape(-1, 28, 28, 1).astype('float32') / 255.0
 
 class_names = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+from keras.models import load_model
+model = load_model("pages/mnist_model.h5")
 
-model = tf.keras.models.load_model("pages/mnist_model.h5")
 classifier = KerasClassifier(model=model, clip_values=(0, 1))
 from art.attacks.evasion import (
     FastGradientMethod,
