@@ -71,7 +71,9 @@ def evaluate_attack_results(overall_acc, members_acc, non_members_acc):
 def load_model():
     """Load model with caching"""
     try:
-        model = tf.keras.models.load_model("pages/mnist_model.h5")
+        from keras.models import load_model
+         model = load_model("pages/mnist_model.h5")
+
         return model
     except Exception as e:
         st.error(f"Error loading model: {e}")
