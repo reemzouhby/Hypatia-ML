@@ -697,7 +697,7 @@ If you pick **well-separated digits** (e.g., 0 vs 8), the attack will likely be 
             backdoor = PoisoningAttackBackdoor(perturbation=perturbation_fn)
             proxy = AdversarialTrainerMadryPGD(classifier)
             proxy.fit(x_train.cpu().numpy(), y_train.cpu().numpy())
-            attack= PoisoningAttackCleanLabelBackdoor(backdoor=backdoor,target=target_class,proxy_classifier=classifier, pp_poison=poison_fraction)
+            attack= PoisoningAttackCleanLabelBackdoor(backdoor=backdoor,target=target_class,proxy_classifier=proxy, pp_poison=poison_fraction)
             nb_poisoning = int(len(x_train) * poison_fraction)
 
             non_target_indices = np.where(y_train.cpu().numpy() != target_class)[0]
