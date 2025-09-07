@@ -9,6 +9,11 @@ os.environ["NUMEXPR_NUM_THREADS"] = "1"
 os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
 import torch
+import torch
+
+torch.cuda.empty_cache()   # clears GPU memory leaks
+torch.autograd.set_detect_anomaly(False)  # prevents PyTorch from storing debug traces
+
 torch.set_num_threads(1)           # disable threading
 torch.multiprocessing.set_sharing_strategy("file_system")  # safer on Windows
 
@@ -696,7 +701,11 @@ If you pick **well-separated digits** (e.g., 0 vs 8), the attack will likely be 
             poison_fraction = parameters.get("percent_poison") / 100.0
             backdoor = PoisoningAttackBackdoor(perturbation=perturbation_fn)
             proxy = AdversarialTrainerMadryPGD(classifier)
-            proxy.fit(x_train.cpu().numpy(), y_train.cpu().numpy())
+            proxy.fit(
+    x_train.detach().cpu().numpy().copy(),
+    y_train.detach().cpu().numpy().copy()
+)
+
             attack= PoisoningAttackCleanLabelBackdoor(backdoor=backdoor,target=target_class,proxy_classifier=proxy, pp_poison=poison_fraction)
             nb_poisoning = int(len(x_train) * poison_fraction)
 
