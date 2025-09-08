@@ -689,108 +689,95 @@ If you pick **well-separated digits** (e.g., 0 vs 8), the attack will likely be 
     elif attack_type == "PoisoningAttackCleanLabelBackdoor":
             with st.spinner("⏳ Running " + attack_type + " attack... Please wait"):
                 try:
-                    # Create perturbation function
-                    perturbation_fn = create_perturbation_function(patch_type, parameters)
+                    # Create perturbation function (similar to your working Keras version)
+                    
 
-                    # Initialize backdoor attack
-                    backdoor = PoisoningAttackBackdoor(perturbation=perturbation_fn)
 
                     # Get parameters
-                    target_class = parameters.get("target_class")
+                    target_class_int = parameters.get("target_class")
                     poison_fraction = parameters.get("percent_poison") / 100.0
-                    nb_poisoning = int(len(x_train) * poison_fraction)
 
-                    st.info(f"🧪 Creating {nb_poisoning} poisoned samples targeting class {target_class}...")
+                    # Convert target class to one-hot (KEY FIX!)
+                    target_class_onehot = np.zeros(num_classes)
+                    target_class_onehot[target_class_int] = 1
 
-                    # CORRECT: Create a separate proxy classifier (same architecture as main classifier)
-                    proxy_model = CNN().to(device)
-                    proxy_criterion = torch.nn.CrossEntropyLoss()
-                    proxy_optimizer = optim.Adam(proxy_model.parameters(), lr=0.001)
+                    # Create trigger function
+                    trigger_fn =create_perturbation_function(patch_type, parameters)
 
-                    proxy_classifier = PyTorchClassifier(
-                        model=proxy_model,
-                        loss=proxy_criterion,
-                        optimizer=proxy_optimizer,
-                        input_shape=(1, 28, 28),
-                        nb_classes=10,
-                        clip_values=(-1, 1)
-                    )
+                    # Initialize backdoor attack
+                    backdoor = PoisoningAttackBackdoor(perturbation=trigger_fn)
 
-                    # Train proxy classifier on clean training data
-                    st.info("🔄 Training proxy classifier...")
-                    proxy_classifier.fit(
-                        x_train.cpu().numpy(),
-                        y_train.cpu().numpy(),
-                        batch_size=128,
-                        nb_epochs=5
-                    )
-
-                    # Initialize clean-label attack with corrected parameters
+                    # Initialize clean-label attack with one-hot target
                     attack = PoisoningAttackCleanLabelBackdoor(
                         backdoor=backdoor,
-                        target=target_class,
-                        proxy_classifier=proxy_classifier,  # Use the trained proxy
+                        target=target_class_onehot,  # Use one-hot encoding
+                        proxy_classifier=classifier,
                         pp_poison=poison_fraction,
                         norm=2,
-                        eps=0.1,  # Much smaller epsilon for MNIST
-                        eps_step=0.01,  # Smaller step size
-                        max_iter=50  # Reduced iterations for faster execution
+                        eps=0.1,
+                        eps_step=0.01,
+                        max_iter=50
                     )
 
-                    # Select non-target samples to poison
-                    non_target_indices = np.where(y_train.cpu().numpy() != target_class)[0]
+                    # Convert PyTorch data to numpy for ART (following your Keras approach)
+                    x_train_np = x_train.cpu().numpy()
+                    y_train_np = y_train.cpu().numpy()
+                    x_test_np = x_test.cpu().numpy()
+                    y_test_np = y_test.cpu().numpy()
+
+                    # Convert labels to one-hot
+                    from art.utils import to_categorical
+
+                    y_train_onehot = to_categorical(y_train_np, nb_classes=num_classes)
+                    y_test_onehot = to_categorical(y_test_np, nb_classes=num_classes)
+
+                    # Calculate number of samples to poison
+                    nb_poisoning = int(len(x_train_np) * poison_fraction)
+                    st.info(f"🧪 Creating {nb_poisoning} poisoned samples targeting class {target_class_int}...")
+
+                    # Find non-target samples (KEY FIX!)
+                    non_target_mask = np.argmax(y_train_onehot, axis=1) != target_class_int
+                    non_target_indices = np.where(non_target_mask)[0]
+
                     if len(non_target_indices) < nb_poisoning:
                         st.error(
                             f"Not enough non-target samples. Only {len(non_target_indices)} available, need {nb_poisoning}.")
                         st.stop()
 
-                    # Randomly select samples to poison
-                    idx = np.random.choice(non_target_indices, nb_poisoning, replace=False)
-                    x_poison = x_train[idx].cpu().numpy()
-                    y_poison = y_train[idx].cpu().numpy()
-
-                    # Convert to one-hot encoding for ART
-                    from art.utils import to_categorical
-
-                    y_poison_oh = to_categorical(y_poison, nb_classes=num_classes)
+                    # Select samples to poison (can be from any class, like in your Keras version)
+                    idx = np.random.choice(len(x_train_np), nb_poisoning, replace=False)
+                    x_poison = x_train_np[idx]
+                    y_poison = y_train_onehot[idx]
 
                     # Execute the attack
                     st.info("⚔️ Executing clean-label attack...")
-                    x_poisoned, y_poisoned = attack.poison(x_poison, y_poison_oh)
-
-                    # Convert back to torch tensors
-                    x_poison_torch = torch.tensor(x_poisoned, dtype=torch.float32).to(device)
-                    y_poison_labels = torch.tensor(y_poisoned.argmax(axis=1), dtype=torch.long).to(device)
+                    x_poisoned, y_poisoned = attack.poison(x_poison, y_poison)
 
                     # Combine clean + poisoned data
-                    x_train_poisoned = torch.cat([x_train, x_poison_torch], dim=0)
-                    y_train_poisoned = torch.cat([y_train, y_poison_labels], dim=0)
+                    x_train_poisoned = np.concatenate([x_train_np, x_poisoned])
+                    y_train_poisoned = np.concatenate([y_train_onehot, y_poisoned])
 
-                    # Retrain the main classifier with poisoned data
+                    # Retrain the classifier
                     st.info("🔄 Retraining classifier with poisoned data...")
-                    classifier.fit(
-                        x_train_poisoned.cpu().numpy(),
-                        y_train_poisoned.cpu().numpy(),
-                        batch_size=128,
-                        nb_epochs=10
-                    )
+                    classifier.fit(x_train_poisoned, y_train_poisoned, batch_size=128, nb_epochs=10)
 
                     # Evaluate clean accuracy
-                    clean_predictions = classifier.predict(x_test.cpu().numpy())
-                    clean_acc = (clean_predictions.argmax(1) == y_test.cpu().numpy()).mean()
+                    clean_predictions = classifier.predict(x_test_np)
+                    clean_acc = (np.argmax(clean_predictions, axis=1) == np.argmax(y_test_onehot, axis=1)).mean()
 
-                    # Test backdoor success rate on non-target samples
-                    mask_non_target = (y_test.cpu().numpy() != target_class)
-                    x_test_subset = x_test[mask_non_target]
+                    # Test backdoor success rate (following your Keras logic)
+                    mask_non_target = np.argmax(y_test_onehot, axis=1) != target_class_int
+                    x_test_subset = x_test_np[mask_non_target]
+                    y_test_subset = y_test_onehot[mask_non_target]
 
                     if len(x_test_subset) == 0:
                         st.error("No non-target samples in test set!")
                         st.stop()
 
                     # Apply trigger to test images
-                    x_triggered = patch(patch_type, parameters, x_test_subset)
-                    triggered_predictions = classifier.predict(x_triggered.cpu().numpy())
-                    asr = (triggered_predictions.argmax(1) == target_class).mean()
+                    x_triggered = trigger_fn(x_test_subset)
+                    triggered_predictions = classifier.predict(x_triggered)
+                    asr = (np.argmax(triggered_predictions, axis=1) == target_class_int).mean()
 
                     # Display results
                     col1, col2 = st.columns(2)
@@ -799,27 +786,26 @@ If you pick **well-separated digits** (e.g., 0 vs 8), the attack will likely be 
                     with col2:
                         st.metric("Attack Success Rate (ASR)", f"{asr:.3f}")
 
-                    # Visualization
-                    fig, axes = plt.subplots(2, 5, figsize=(15, 6))
+                    # Visualization (following your Keras plotting style)
+                    fig, axes = plt.subplots(2, 10, figsize=(20, 4))
 
-                    num_display = min(5, len(x_test_subset))
+                    num_display = min(10, len(x_test_subset))
                     for i in range(num_display):
                         # Original image
-                        orig_img = x_test_subset[i].cpu().numpy().squeeze()
-                        axes[0, i].imshow(orig_img, cmap='gray')
-                        axes[0, i].set_title(f"Original\nTrue: {y_test[mask_non_target][i].item()}")
+                        axes[0, i].imshow(x_test_subset[i].squeeze(), cmap='gray')
+                        true_class = np.argmax(y_test_subset[i])
+                        axes[0, i].set_title(f"Original\nTrue: {true_class}")
                         axes[0, i].axis('off')
 
                         # Triggered image
-                        trig_img = x_triggered[i].cpu().numpy().squeeze()
-                        pred_label = triggered_predictions[i].argmax()
-                        color = 'green' if pred_label == target_class else 'red'
-                        axes[1, i].imshow(trig_img, cmap='gray')
-                        axes[1, i].set_title(f"Triggered\nPred: {pred_label}", color=color)
+                        axes[1, i].imshow(x_triggered[i].squeeze(), cmap='gray')
+                        pred_class = np.argmax(triggered_predictions[i])
+                        color = 'blue' if pred_class == target_class_int else 'red'
+                        axes[1, i].set_title(f"Triggered\nPred: {pred_class}", color=color)
                         axes[1, i].axis('off')
 
                     # Hide unused subplots
-                    for i in range(num_display, 5):
+                    for i in range(num_display, 10):
                         axes[0, i].axis('off')
                         axes[1, i].axis('off')
 
@@ -832,8 +818,12 @@ If you pick **well-separated digits** (e.g., 0 vs 8), the attack will likely be 
                     elif asr > 0.5:
                         st.warning(f"⚠️ Partial success. ASR: {asr:.1%}")
                     else:
-                        st.error(f"❌ Clean-label attack failed. ASR: {asr:.1%}")
+                        st.info(f"ℹ️ Attack completed. ASR: {asr:.1%}")
+                        st.info(
+                            "💡 Clean-label attacks can be challenging. Try adjusting the patch parameters or poison percentage.")
 
                 except Exception as e:
                     st.error(f"❌ Attack failed with error: {str(e)}")
-                    st.error("This could be due to optimization issues or parameter mismatches.")
+                    import traceback
+
+                    st.error(f"Details: {traceback.format_exc()}")
