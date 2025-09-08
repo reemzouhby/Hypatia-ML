@@ -283,7 +283,6 @@ if 'data_loaded' in st.session_state and st.session_state.data_loaded:
         # Add session management wrapper
         with tf.compat.v1.Session() as sess:
             tf.compat.v1.keras.backend.set_session(sess)
-            
             if attack_type == "CopyCatCNN":
                 with st.spinner("⏳ Running " + attack_type + " attack... Please wait"):
                     try:
@@ -493,6 +492,10 @@ if 'data_loaded' in st.session_state and st.session_state.data_loaded:
                     except Exception as e:
                         st.error(f"❌ Attack failed: {str(e)}")
                         st.info("💡 Try reducing batch sizes, number of samples, or enable Low Memory Mode.")
+
+        except Exception as e:
+            st.error(f"❌ Unexpected error: {str(e)}")
+            st.info("💡 Try refreshing the page or reducing parameter values.")
 
         clear_memory()  # Clean up after attack
 
