@@ -58,7 +58,8 @@ def load_data():
 
 if 'data_loaded' not in st.session_state:
     with st.spinner("Loading model and data..."):
-        model = load_model()
+        model = model = load_mnist_model() 
+
         if model is not None:
             (train_images, train_labels), (test_images, test_labels) = load_data()
             classifier = KerasClassifier(model=model, clip_values=(0, 1))
