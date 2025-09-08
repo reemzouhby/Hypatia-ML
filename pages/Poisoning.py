@@ -765,6 +765,7 @@ If you pick **well-separated digits** (e.g., 0 vs 8), the attack will likely be 
 
                         x_poison = x_train[selected_indices].cpu().numpy()
                         y_poison = y_train[selected_indices].cpu().numpy()
+                        from art.utils import to_categorical
                         y_poison_oh = to_categorical(y_poison, nb_classes=num_classes)
 
                         st.info(f"🎯 Poisoning {len(selected_indices)} samples...")
