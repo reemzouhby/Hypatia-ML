@@ -35,7 +35,8 @@ st.markdown("---")
 @st.cache_resource
 def load_mnist_model():
     """Load pretrained MNIST model"""
-    model = load_model("pages/mnist_model.h5")
+     model = load_model("pages/mnist_model.h5", compile=False, safe_mode=False)
+
     return model
 
 
