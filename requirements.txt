@@ -8,3 +8,4 @@ pandas
 scikit-learn
 seaborn
 opencv-python-headless
+memory-profiler>=0.60.0  # for detailed memory monitoring
