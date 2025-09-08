@@ -431,7 +431,7 @@ if 'data_loaded' in st.session_state and st.session_state.data_loaded:
                     )
                     loss_org, acc_org = classifier.model.evaluate(
                         test_images[nb_stolen:nb_stolen+test_subset], 
-                        y_test_cat, 
+                        test_labels[nb_stolen:nb_stolen+test_subset], 
                         verbose=0
                     )
 
