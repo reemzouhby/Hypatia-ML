@@ -627,7 +627,7 @@ If you pick **well-separated digits** (e.g., 0 vs 8), the attack will likely be 
                 classifier=classifier,
                 percent_poison=percent_poison,
                 epsilon=epsilon,
-                max_trials=10,
+                max_trials=5,
                 max_epochs=100,
                 learning_rate_schedule=([0.1, 0.01, 0.001], [20, 40, 45]),
                 batch_size=64,
