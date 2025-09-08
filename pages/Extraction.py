@@ -27,17 +27,11 @@ st.set_page_config(
 )
 st.title(" 🔓  Extraction Attacks on MNIST")
 st.markdown("---")
+from keras.models import load_model
 @st.cache_resource
-def load_model():
-    """Load model with caching"""
-    try:
-       from keras.models import load_model
+def load_mnist_model():
         model = load_model("pages/mnist_model.h5")
-
         return model
-    except Exception as e:
-        st.error(f"Error loading model: {e}")
-        return None
 
 
 @st.cache_data
@@ -147,6 +141,8 @@ if attack_type=="CopyCatCNN":
     param["use_probability"] = st.sidebar.checkbox("Use Probability Output", value=True)
 elif attack_type=="Functionally Equivalent Extraction":
     st.sidebar.subheader("⚡ Functionally Equivalent Extraction Parameters")
+    st.sidebar.warning(
+        "⚠️ **Research Note**: This attack can take approximately **4 days** to complete with optimal parameters. For researchers seeking perfect results, please plan accordingly.")
 
     # Core parameters
     param["num_neurons"] = st.sidebar.number_input("Number of Neurons", min_value=64, max_value=512, value=128, step=64)
