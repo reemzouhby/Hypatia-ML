@@ -314,7 +314,7 @@ if run_button:
             )
             y_test_cat = to_categorical(test_labels[nb_stolen:], nb_classes=10)
             loss, acc = classifier_stolen._model.evaluate(test_images[nb_stolen:], y_test_cat)
-            loss,acc_org=classifier.model.evaluate(test_images[nb_stolen:], y_test_cat)
+            loss_org, acc_org = classifier.model.evaluate(test_images[nb_stolen:], test_labels[nb_stolen:])
             st.success("✅ Knockoff Nets attack completed!")
             acc_drop = acc_org - acc
 
