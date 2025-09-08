@@ -29,9 +29,16 @@ st.title(" 🔓  Extraction Attacks on MNIST")
 st.markdown("---")
 from keras.models import load_model
 @st.cache_resource
-def load_mnist_model():
-        model = load_model("pages/mnist_model.h5")
+def load_model():
+    """Load model with caching"""
+    try:
+        from keras.models import load_model
+         model = load_model("pages/mnist_model.h5")
+
         return model
+    except Exception as e:
+        st.error(f"Error loading model: {e}")
+        return None
 
 
 @st.cache_data
