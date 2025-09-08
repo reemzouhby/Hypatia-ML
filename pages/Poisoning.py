@@ -307,6 +307,10 @@ elif attack_type == "PoisoningAttackCleanLabelBackdoor":
 
     # Intensity of the patch
     parameters["patch_value"] = st.sidebar.slider("Patch Intensity", min_value=-1.0, max_value=1.0, value=1.0, step=0.1)
+    parameters["advanced_eps"] = st.sidebar.slider("Perturbation Strength (eps)", 0.1, 2.0, 0.5, 0.1)
+    parameters["advanced_max_iter"] = st.sidebar.slider("Max Iterations", 50, 500, 200, 50)
+    parameters["advanced_step_size"] = st.sidebar.slider("Step Size Multiplier", 0.1, 0.5, 0.1, 0.05)
+
 
 elif attack_type == "FeatureCollisionAttack":
 # targetclass, baseclass,max iteration
@@ -334,6 +338,8 @@ run_button = st.button("🚀 Run " + attack_type + " Attack", type="primary")
 
 # Attack execution
 if run_button:
+    st.cache_data.clear()
+    st.cache_resource.clear()
     if attack_type == "PoisoningAttackBackdoor":
         with st.spinner("⏳ Running " + attack_type + " attack... Please wait"):
             # Create perturbation function
@@ -710,9 +716,9 @@ If you pick **well-separated digits** (e.g., 0 vs 8), the attack will likely be 
                         proxy_classifier=classifier,
                         pp_poison=poison_fraction,
                         norm=2,
-                        eps=0.5,
-                        eps_step=0.01,
-                        max_iter=100
+                        eps=parameters["advanced_eps"],  # Increased perturbation strength
+                        eps_step=parameters["advanced_eps"] * parameters["advanced_step_size"],  # Proportional step size
+                        max_iter=parameters["advanced_max_iter"]
                     )
 
                     x_train_np = x_train.cpu().numpy()
