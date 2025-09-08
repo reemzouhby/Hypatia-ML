@@ -2,16 +2,22 @@ import streamlit as st
 import os
 import gc  # Garbage collector for memory management
 
+# CRITICAL: Add these BEFORE any TensorFlow imports
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+os.environ['TF_FUNCTION_CACHE_DISABLED'] = '1'
+
+import tensorflow as tf
+# CRITICAL: Disable eager execution to fix tf.function variable creation error
+tf.compat.v1.disable_eager_execution()
+tf.config.run_functions_eagerly(True)
+
 from art.utils import to_categorical
 from sklearn.model_selection import train_test_split
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-from tensorflow.keras import backend as K
 import warnings
 from keras.datasets import mnist, fashion_mnist, cifar10, cifar100
 import cv2
-import tensorflow as tf
 import numpy as np
 import keras
 from keras.models import Sequential, Model
@@ -21,16 +27,19 @@ import pandas as pd
 from art.estimators.classification import KerasClassifier
 from art.attacks.extraction import CopycatCNN, FunctionallyEquivalentExtraction, KnockoffNets
 
-# Configure TensorFlow for memory efficiency
+# Configure TensorFlow for memory efficiency and compatibility
 def configure_tensorflow():
-    """Configure TensorFlow to use less memory"""
+    """Configure TensorFlow to use less memory and avoid tf.function issues"""
     try:
+        # Disable JIT compilation
+        tf.config.optimizer.set_jit(False)
+        
         gpus = tf.config.experimental.list_physical_devices('GPU')
         if gpus:
             for gpu in gpus:
                 tf.config.experimental.set_memory_growth(gpu, True)
-    except:
-        pass
+    except Exception as e:
+        print(f"TensorFlow configuration warning: {e}")
     
     # Set memory limit for CPU
     tf.config.threading.set_inter_op_parallelism_threads(2)
@@ -59,12 +68,15 @@ def load_mnist_model():
 
 def create_simple_model():
     """Create a simple model if the original model file is not available"""
-    model = Sequential([
-        Flatten(input_shape=(28, 28, 1)),
-        Dense(128, activation='relu'),
-        Dense(64, activation='relu'),
-        Dense(10, activation='softmax')
-    ])
+    # Use explicit naming to avoid variable conflicts
+    with tf.name_scope('simple_model'):
+        model = Sequential([
+            Flatten(input_shape=(28, 28, 1), name='flatten'),
+            Dense(128, activation='relu', name='dense1'),
+            Dense(64, activation='relu', name='dense2'),
+            Dense(10, activation='softmax', name='dense3')
+        ], name='simple_sequential')
+    
     model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
     
     # Quick training on small subset
@@ -96,10 +108,13 @@ def load_data(max_train_size=5000, max_test_size=2000):  # Reduced sizes
     return (train_images, train_labels), (test_images, test_labels)
 
 def clear_memory():
-    """Clear memory and reset TensorFlow session"""
-    K.clear_session()
+    """Enhanced memory clearing with tf.function cache clearing"""
+    try:
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
+    except:
+        pass
     gc.collect()
-    tf.keras.backend.clear_session()
 
 if 'data_loaded' not in st.session_state:
     with st.spinner("Loading model and data..."):
@@ -119,10 +134,15 @@ if 'data_loaded' not in st.session_state:
             st.stop()
 
 def get_model_FEE():
+    """Create FEE model with proper variable scope"""
     clear_memory()
-    model = Sequential()
-    model.add(Dense(64, activation="relu", input_shape=(784,)))  # Reduced neurons
-    model.add(Dense(10, activation="linear"))
+    
+    with tf.name_scope('fee_model'):
+        model = Sequential([
+            Dense(64, activation="relu", input_shape=(784,), name='fee_dense1'),
+            Dense(10, activation="linear", name='fee_output')
+        ], name='fee_sequential')
+    
     return model
 
 @st.cache_data
@@ -160,16 +180,20 @@ def load_external_dataset(dataset_name, max_samples=2000):  # Reduced max sample
         return None
 
 def get_model(NUM_CLASSES):
+    """Create model with explicit variable scope"""
     clear_memory()
-    model = Sequential()
-    # Smaller model architecture
-    model.add(Conv2D(16, (3, 3), activation='relu', input_shape=(28, 28, 1), padding='same'))
-    model.add(MaxPooling2D((2, 2)))
-    model.add(Conv2D(32, (3, 3), activation='relu', padding='same'))
-    model.add(MaxPooling2D((2, 2)))
-    model.add(Flatten())
-    model.add(Dense(64, activation='relu'))
-    model.add(Dense(NUM_CLASSES, activation='softmax'))
+    
+    with tf.name_scope('attack_model'):
+        model = Sequential([
+            Conv2D(16, (3, 3), activation='relu', input_shape=(28, 28, 1), 
+                   padding='same', name='conv1'),
+            MaxPooling2D((2, 2), name='pool1'),
+            Conv2D(32, (3, 3), activation='relu', padding='same', name='conv2'),
+            MaxPooling2D((2, 2), name='pool2'),
+            Flatten(name='flatten'),
+            Dense(64, activation='relu', name='dense1'),
+            Dense(NUM_CLASSES, activation='softmax', name='output')
+        ], name='attack_sequential')
 
     model.compile(optimizer='adam',
                   loss=tf.keras.losses.CategoricalCrossentropy(from_logits=False),
@@ -256,206 +280,219 @@ if 'data_loaded' in st.session_state and st.session_state.data_loaded:
     if run_button:
         clear_memory()  # Clear memory before starting attack
         
-        if attack_type == "CopyCatCNN":
-            with st.spinner("⏳ Running " + attack_type + " attack... Please wait"):
-                try:
-                    nb_stolen = param["nb_stolen"]
-                    if steal_dataset == "MNIST Test Set":
-                        x_steal = test_images[:nb_stolen]
-                    else:
-                        dataset_name = steal_dataset
-                        st.write(f"The victim model is reconstructed based on {dataset_name} Dataset")
-                        x_steal = load_external_dataset(dataset_name, nb_stolen)
-                        if x_steal is None:
-                            st.error("Failed to load external dataset")
-                            st.stop()
-                    
-                    attack = CopycatCNN(
-                        classifier,
-                        batch_size_fit=param["batch_size_fit"],
-                        batch_size_query=param["batch_size_query"],
-                        nb_epochs=param["nb_epochs"],
-                        use_probability=param["use_probability"],
-                        nb_stolen=nb_stolen
-                    )
-                    
-                    stolen_model = get_model(10)
-                    classifier_stolen = KerasClassifier(stolen_model, clip_values=(0, 1))
-                    classifier_stolen = attack.extract(thieved_classifier=classifier_stolen, x=x_steal)
-                    
-                    # Evaluate on smaller test set
-                    test_subset = min(1000, len(test_images) - nb_stolen)
-                    y_test_cat = to_categorical(test_labels[nb_stolen:nb_stolen+test_subset], nb_classes=10)
-                    
-                    loss_org, acc_org = classifier.model.evaluate(
-                        test_images[nb_stolen:nb_stolen+test_subset], 
-                        test_labels[nb_stolen:nb_stolen+test_subset], 
-                        verbose=0
-                    )
-                    loss, acc = classifier_stolen._model.evaluate(
-                        test_images[nb_stolen:nb_stolen+test_subset], 
-                        y_test_cat, 
-                        verbose=0
-                    )
-
-                    # Calculate fidelity
-                    org_pred = classifier.predict(test_images[nb_stolen:nb_stolen+test_subset])
-                    stol_pred = classifier_stolen.predict(test_images[nb_stolen:nb_stolen+test_subset])
-                    
-                    original_classes = np.argmax(org_pred, axis=1) if len(org_pred.shape) > 1 else org_pred
-                    stolen_classes = np.argmax(stol_pred, axis=1) if len(stol_pred.shape) > 1 else stol_pred
-                    fidelity = np.mean(original_classes == stolen_classes)
-                    
-                    st.success("✅ CopyCatCNN attack completed!")
-                    
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.metric("Original Accuracy", f"{acc_org:.3f}", f"{acc_org * 100:.1f}%")
-                    with col2:
-                        st.metric("Stolen Accuracy", f"{acc:.3f}", f"{acc * 100:.1f}%")
-                    with col3:
-                        st.metric("Fidelity", f"{fidelity:.3f}", f"{fidelity * 100:.1f}%")
+        # Add session management wrapper
+        with tf.compat.v1.Session() as sess:
+            tf.compat.v1.keras.backend.set_session(sess)
+            
+            if attack_type == "CopyCatCNN":
+                with st.spinner("⏳ Running " + attack_type + " attack... Please wait"):
+                    try:
+                        nb_stolen = param["nb_stolen"]
+                        if steal_dataset == "MNIST Test Set":
+                            x_steal = test_images[:nb_stolen]
+                        else:
+                            dataset_name = steal_dataset
+                            st.write(f"The victim model is reconstructed based on {dataset_name} Dataset")
+                            x_steal = load_external_dataset(dataset_name, nb_stolen)
+                            if x_steal is None:
+                                st.error("Failed to load external dataset")
+                                st.stop()
                         
-                except Exception as e:
-                    st.error(f"❌ Attack failed: {str(e)}")
-                    st.info("💡 Try enabling Low Memory Mode or reducing parameter values.")
-
-        elif attack_type == "Functionally Equivalent Extraction":
-            with st.spinner("⏳ Running " + attack_type + " attack... Please wait"):
-                try:
-                    st.info("⚠️ Note: Using dense neural network model for this attack.")
-                    
-                    # Use smaller dataset - always optimized for memory
-                    subset_size = 2000
-                    train_images_flat = train_images[:subset_size].reshape(train_images[:subset_size].shape[0], -1)
-                    test_images_flat = test_images[:1000].reshape(test_images[:1000].shape[0], -1)
-                    
-                    target_model = get_model_FEE()
-                    target_model.compile(
-                        optimizer="adam", 
-                        loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
-                        metrics=["accuracy"]
-                    )
-                    
-                    # Train with smaller epochs
-                    target_model.fit(
-                        train_images_flat, train_labels[:subset_size], 
-                        epochs=3, verbose=0, batch_size=32
-                    )
-                    
-                    loss, acc_org = target_model.evaluate(test_images_flat, test_labels[:1000], verbose=0)
-                    classifier_fee = KerasClassifier(target_model, clip_values=(0, 1), use_logits=True)
-                    
-                    attack = FunctionallyEquivalentExtraction(classifier_fee, num_neurons=param["num_neurons"])
-                    
-                    # Use smaller extraction dataset
-                    extract_size = 500
-                    stolen_classifier = attack.extract(
-                        test_images_flat[:extract_size], 
-                        test_labels[:extract_size],
-                        delta_0=param["delta_0"],
-                        fraction_true=param["fraction_true"],
-                        rel_diff_slope=param["rel_diff_slope"],
-                        rel_diff_value=param["rel_diff_value"],
-                        delta_init_value=param["delta_init_value"],
-                        delta_value_max=param["delta_value_max"]
-                    )
-                    
-                    loss, acc_stolen = stolen_classifier.model.evaluate(test_images_flat[:500], test_labels[:500], verbose=0)
-                    
-                    # Calculate fidelity
-                    org_pred = classifier_fee.predict(test_images_flat[:500])
-                    stol_pred = stolen_classifier.predict(test_images_flat[:500])
-                    
-                    original_classes = np.argmax(org_pred, axis=1) if len(org_pred.shape) > 1 else org_pred
-                    stolen_classes = np.argmax(stol_pred, axis=1) if len(stol_pred.shape) > 1 else stol_pred
-                    fidelity = np.mean(original_classes == stolen_classes)
-                    
-                    st.success("✅ Functionally Equivalent Extraction completed!")
-                    
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.metric("Original Accuracy", f"{acc_org:.3f}", f"{acc_org * 100:.1f}%")
-                    with col2:
-                        st.metric("Stolen Accuracy", f"{acc_stolen:.3f}", f"{acc_stolen * 100:.1f}%")
-                    with col3:
-                        st.metric("Fidelity", f"{fidelity:.3f}", f"{fidelity * 100:.1f}%")
+                        attack = CopycatCNN(
+                            classifier,
+                            batch_size_fit=param["batch_size_fit"],
+                            batch_size_query=param["batch_size_query"],
+                            nb_epochs=param["nb_epochs"],
+                            use_probability=param["use_probability"],
+                            nb_stolen=nb_stolen
+                        )
                         
-                except Exception as e:
-                    st.error(f"❌ Attack failed: {str(e)}")
-                    st.info("💡 This attack is memory-intensive. Try reducing the number of neurons.")
-                    
-        elif attack_type == "Knockoff Nets":
-            with st.spinner("⏳ Running " + attack_type + " attack... Please wait"):
-                try:
-                    nb_stolen = param["nb_stolen"]
-                    if steal_dataset == "MNIST Test Set":
-                        x_steal = test_images[:nb_stolen]
-                    else:
-                        dataset_name = steal_dataset
-                        st.write(f"The victim model is reconstructed based on {dataset_name} Dataset")
-                        x_steal = load_external_dataset(dataset_name, nb_stolen)
-                        if x_steal is None:
-                            st.error("Failed to load external dataset")
-                            st.stop()
-                    
-                    attack = KnockoffNets(
-                        classifier,
-                        batch_size_fit=param["batch_size_fit"],
-                        batch_size_query=param["batch_size_query"],
-                        nb_epochs=param["nb_epochs"],
-                        use_probability=param["use_probability"],
-                        nb_stolen=nb_stolen,
-                        sampling_strategy=param["sampling_strategy"],
-                        reward=param["reward"]
-                    )
-                    
-                    stolen_model = get_model(10)
-                    classifier_stolen = KerasClassifier(stolen_model, clip_values=(0, 1))
-                    y_steal = classifier.predict(x_steal)
-                    
-                    classifier_stolen = attack.extract(
-                        thieved_classifier=classifier_stolen,
-                        x=x_steal,
-                        y=y_steal
-                    )
-                    
-                    # Evaluate on smaller test set
-                    test_subset = min(1000, len(test_images) - nb_stolen)
-                    y_test_cat = to_categorical(test_labels[nb_stolen:nb_stolen+test_subset], nb_classes=10)
-                    
-                    loss, acc = classifier_stolen._model.evaluate(
-                        test_images[nb_stolen:nb_stolen+test_subset], 
-                        y_test_cat, 
-                        verbose=0
-                    )
-                    loss_org, acc_org = classifier.model.evaluate(
-                        test_images[nb_stolen:nb_stolen+test_subset], 
-                        test_labels[nb_stolen:nb_stolen+test_subset], 
-                        verbose=0
-                    )
-
-                    # Calculate fidelity
-                    org_pred = classifier.predict(test_images[nb_stolen:nb_stolen+test_subset])
-                    stol_pred = classifier_stolen.predict(test_images[nb_stolen:nb_stolen+test_subset])
-                    
-                    original_classes = np.argmax(org_pred, axis=1) if len(org_pred.shape) > 1 else org_pred
-                    stolen_classes = np.argmax(stol_pred, axis=1) if len(stol_pred.shape) > 1 else stol_pred
-                    fidelity = np.mean(original_classes == stolen_classes)
-
-                    st.success("✅ Knockoff Nets attack completed!")
-
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.metric("Original Accuracy", f"{acc_org:.3f}", f"{acc_org * 100:.1f}%")
-                    with col2:
-                        st.metric("Stolen Accuracy", f"{acc:.3f}", f"{acc * 100:.1f}%")
-                    with col3:
-                        st.metric("Fidelity", f"{fidelity:.3f}", f"{fidelity * 100:.1f}%")
+                        stolen_model = get_model(10)
+                        # Build model explicitly
+                        stolen_model.build((None, 28, 28, 1))
                         
-                except Exception as e:
-                    st.error(f"❌ Attack failed: {str(e)}")
-                    st.info("💡 Try reducing batch sizes, number of samples, or enable Low Memory Mode.")
+                        classifier_stolen = KerasClassifier(stolen_model, clip_values=(0, 1))
+                        classifier_stolen = attack.extract(thieved_classifier=classifier_stolen, x=x_steal)
+                        
+                        # Evaluate on smaller test set
+                        test_subset = min(1000, len(test_images) - nb_stolen)
+                        y_test_cat = to_categorical(test_labels[nb_stolen:nb_stolen+test_subset], nb_classes=10)
+                        
+                        loss_org, acc_org = classifier.model.evaluate(
+                            test_images[nb_stolen:nb_stolen+test_subset], 
+                            test_labels[nb_stolen:nb_stolen+test_subset], 
+                            verbose=0
+                        )
+                        loss, acc = classifier_stolen._model.evaluate(
+                            test_images[nb_stolen:nb_stolen+test_subset], 
+                            y_test_cat, 
+                            verbose=0
+                        )
+
+                        # Calculate fidelity
+                        org_pred = classifier.predict(test_images[nb_stolen:nb_stolen+test_subset])
+                        stol_pred = classifier_stolen.predict(test_images[nb_stolen:nb_stolen+test_subset])
+                        
+                        original_classes = np.argmax(org_pred, axis=1) if len(org_pred.shape) > 1 else org_pred
+                        stolen_classes = np.argmax(stol_pred, axis=1) if len(stol_pred.shape) > 1 else stol_pred
+                        fidelity = np.mean(original_classes == stolen_classes)
+                        
+                        st.success("✅ CopyCatCNN attack completed!")
+                        
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("Original Accuracy", f"{acc_org:.3f}", f"{acc_org * 100:.1f}%")
+                        with col2:
+                            st.metric("Stolen Accuracy", f"{acc:.3f}", f"{acc * 100:.1f}%")
+                        with col3:
+                            st.metric("Fidelity", f"{fidelity:.3f}", f"{fidelity * 100:.1f}%")
+                            
+                    except Exception as e:
+                        st.error(f"❌ Attack failed: {str(e)}")
+                        st.info("💡 Try enabling Low Memory Mode or reducing parameter values.")
+
+            elif attack_type == "Functionally Equivalent Extraction":
+                with st.spinner("⏳ Running " + attack_type + " attack... Please wait"):
+                    try:
+                        st.info("⚠️ Note: Using dense neural network model for this attack.")
+                        
+                        # Use smaller dataset - always optimized for memory
+                        subset_size = 2000
+                        train_images_flat = train_images[:subset_size].reshape(train_images[:subset_size].shape[0], -1)
+                        test_images_flat = test_images[:1000].reshape(test_images[:1000].shape[0], -1)
+                        
+                        target_model = get_model_FEE()
+                        target_model.compile(
+                            optimizer="adam", 
+                            loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+                            metrics=["accuracy"]
+                        )
+                        
+                        # Build model explicitly
+                        target_model.build((None, 784))
+                        
+                        # Train with smaller epochs
+                        target_model.fit(
+                            train_images_flat, train_labels[:subset_size], 
+                            epochs=3, verbose=0, batch_size=32
+                        )
+                        
+                        loss, acc_org = target_model.evaluate(test_images_flat, test_labels[:1000], verbose=0)
+                        classifier_fee = KerasClassifier(target_model, clip_values=(0, 1), use_logits=True)
+                        
+                        attack = FunctionallyEquivalentExtraction(classifier_fee, num_neurons=param["num_neurons"])
+                        
+                        # Use smaller extraction dataset
+                        extract_size = 500
+                        stolen_classifier = attack.extract(
+                            test_images_flat[:extract_size], 
+                            test_labels[:extract_size],
+                            delta_0=param["delta_0"],
+                            fraction_true=param["fraction_true"],
+                            rel_diff_slope=param["rel_diff_slope"],
+                            rel_diff_value=param["rel_diff_value"],
+                            delta_init_value=param["delta_init_value"],
+                            delta_value_max=param["delta_value_max"]
+                        )
+                        
+                        loss, acc_stolen = stolen_classifier.model.evaluate(test_images_flat[:500], test_labels[:500], verbose=0)
+                        
+                        # Calculate fidelity
+                        org_pred = classifier_fee.predict(test_images_flat[:500])
+                        stol_pred = stolen_classifier.predict(test_images_flat[:500])
+                        
+                        original_classes = np.argmax(org_pred, axis=1) if len(org_pred.shape) > 1 else org_pred
+                        stolen_classes = np.argmax(stol_pred, axis=1) if len(stol_pred.shape) > 1 else stol_pred
+                        fidelity = np.mean(original_classes == stolen_classes)
+                        
+                        st.success("✅ Functionally Equivalent Extraction completed!")
+                        
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("Original Accuracy", f"{acc_org:.3f}", f"{acc_org * 100:.1f}%")
+                        with col2:
+                            st.metric("Stolen Accuracy", f"{acc_stolen:.3f}", f"{acc_stolen * 100:.1f}%")
+                        with col3:
+                            st.metric("Fidelity", f"{fidelity:.3f}", f"{fidelity * 100:.1f}%")
+                            
+                    except Exception as e:
+                        st.error(f"❌ Attack failed: {str(e)}")
+                        st.info("💡 This attack is memory-intensive. Try reducing the number of neurons.")
+                        
+            elif attack_type == "Knockoff Nets":
+                with st.spinner("⏳ Running " + attack_type + " attack... Please wait"):
+                    try:
+                        nb_stolen = param["nb_stolen"]
+                        if steal_dataset == "MNIST Test Set":
+                            x_steal = test_images[:nb_stolen]
+                        else:
+                            dataset_name = steal_dataset
+                            st.write(f"The victim model is reconstructed based on {dataset_name} Dataset")
+                            x_steal = load_external_dataset(dataset_name, nb_stolen)
+                            if x_steal is None:
+                                st.error("Failed to load external dataset")
+                                st.stop()
+                        
+                        attack = KnockoffNets(
+                            classifier,
+                            batch_size_fit=param["batch_size_fit"],
+                            batch_size_query=param["batch_size_query"],
+                            nb_epochs=param["nb_epochs"],
+                            use_probability=param["use_probability"],
+                            nb_stolen=nb_stolen,
+                            sampling_strategy=param["sampling_strategy"],
+                            reward=param["reward"]
+                        )
+                        
+                        stolen_model = get_model(10)
+                        # Build model explicitly
+                        stolen_model.build((None, 28, 28, 1))
+                        
+                        classifier_stolen = KerasClassifier(stolen_model, clip_values=(0, 1))
+                        y_steal = classifier.predict(x_steal)
+                        
+                        classifier_stolen = attack.extract(
+                            thieved_classifier=classifier_stolen,
+                            x=x_steal,
+                            y=y_steal
+                        )
+                        
+                        # Evaluate on smaller test set
+                        test_subset = min(1000, len(test_images) - nb_stolen)
+                        y_test_cat = to_categorical(test_labels[nb_stolen:nb_stolen+test_subset], nb_classes=10)
+                        
+                        loss, acc = classifier_stolen._model.evaluate(
+                            test_images[nb_stolen:nb_stolen+test_subset], 
+                            y_test_cat, 
+                            verbose=0
+                        )
+                        loss_org, acc_org = classifier.model.evaluate(
+                            test_images[nb_stolen:nb_stolen+test_subset], 
+                            test_labels[nb_stolen:nb_stolen+test_subset], 
+                            verbose=0
+                        )
+
+                        # Calculate fidelity
+                        org_pred = classifier.predict(test_images[nb_stolen:nb_stolen+test_subset])
+                        stol_pred = classifier_stolen.predict(test_images[nb_stolen:nb_stolen+test_subset])
+                        
+                        original_classes = np.argmax(org_pred, axis=1) if len(org_pred.shape) > 1 else org_pred
+                        stolen_classes = np.argmax(stol_pred, axis=1) if len(stol_pred.shape) > 1 else stol_pred
+                        fidelity = np.mean(original_classes == stolen_classes)
+
+                        st.success("✅ Knockoff Nets attack completed!")
+
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("Original Accuracy", f"{acc_org:.3f}", f"{acc_org * 100:.1f}%")
+                        with col2:
+                            st.metric("Stolen Accuracy", f"{acc:.3f}", f"{acc * 100:.1f}%")
+                        with col3:
+                            st.metric("Fidelity", f"{fidelity:.3f}", f"{fidelity * 100:.1f}%")
+                            
+                    except Exception as e:
+                        st.error(f"❌ Attack failed: {str(e)}")
+                        st.info("💡 Try reducing batch sizes, number of samples, or enable Low Memory Mode.")
 
         clear_memory()  # Clean up after attack
 
