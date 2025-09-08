@@ -24,7 +24,9 @@ def load_data(max_train=5000, max_test=1000):
     test_images = test_images[:max_test] / 255.0
     train_images = train_images.reshape(-1, 28, 28, 1)
     test_images = test_images.reshape(-1, 28, 28, 1)
-    return (train_images, train_labels), (test_images, test_labels)
+    train_labels_cat = to_categorical(train_labels[:max_train], num_classes=10)
+    test_labels_cat = to_categorical(test_labels[:max_test], num_classes=10)
+    return (train_images, train_labels_cat), (test_images, test_labels_cat)
 
 (train_images, train_labels), (test_images, test_labels) = load_data()
 
@@ -57,7 +59,7 @@ if run_button:
     classifier = KerasClassifier(model=target_model, clip_values=(0,1))
 
     # Train target model quickly
-    target_model.fit(train_images, to_categorical(train_labels, 10),
+    target_model.fit(train_images, train_labels,
                      epochs=2, batch_size=32, verbose=0)
     
     # Prepare stolen model
@@ -80,13 +82,14 @@ if run_button:
     classifier_stolen = attack.extract(thieved_classifier=classifier_stolen, x=x_steal)
 
     # Evaluate
-    y_test_cat = to_categorical(test_labels[nb_stolen:], 10)
-    loss_orig, acc_orig = classifier.model.evaluate(test_images[nb_stolen:], y_test_cat, verbose=0)
-    loss_stolen, acc_stolen = classifier_stolen.model.evaluate(test_images[nb_stolen:], y_test_cat, verbose=0)
+    test_remaining = test_images[nb_stolen:]
+    y_test_remaining = test_labels[nb_stolen:]
+    loss_orig, acc_orig = classifier.model.evaluate(test_remaining, y_test_remaining, verbose=0)
+    loss_stolen, acc_stolen = classifier_stolen.model.evaluate(test_remaining, y_test_remaining, verbose=0)
 
     # Fidelity
-    org_pred = np.argmax(classifier.predict(test_images[nb_stolen:]), axis=1)
-    stol_pred = np.argmax(classifier_stolen.predict(test_images[nb_stolen:]), axis=1)
+    org_pred = np.argmax(classifier.predict(test_remaining), axis=1)
+    stol_pred = np.argmax(classifier_stolen.predict(test_remaining), axis=1)
     fidelity = np.mean(org_pred == stol_pred)
 
     # Show metrics
