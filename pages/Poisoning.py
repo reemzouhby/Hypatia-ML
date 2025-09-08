@@ -686,101 +686,154 @@ If you pick **well-separated digits** (e.g., 0 vs 8), the attack will likely be 
 
             asr = successful / len(x_eval)
             st.metric("Attack Success Rate (ASR)", f"{asr:.2%}")
-    elif attack_type == "PoisoningAttackCleanLabelBackdoor":
-        with st.spinner("⏳ Running " + attack_type + " attack... Please wait"):
-            # Create perturbation function
-            perturbation_fn = create_perturbation_function(patch_type, parameters)
+            elif attack_type == "PoisoningAttackCleanLabelBackdoor":
+            with st.spinner("⏳ Running " + attack_type + " attack... Please wait"):
+                try:
+                    # Create perturbation function
+                    perturbation_fn = create_perturbation_function(patch_type, parameters)
 
-            # Initialize attack
-            target_class = parameters.get("target_class")
-            poison_fraction = parameters.get("percent_poison") / 100.0
-            backdoor = PoisoningAttackBackdoor(perturbation=perturbation_fn)
-            proxy = AdversarialTrainerMadryPGD(classifier, nb_epochs=10, eps=0.15, eps_step=0.001)
+                    # Initialize backdoor attack
+                    backdoor = PoisoningAttackBackdoor(perturbation=perturbation_fn)
 
-            proxy.fit(
-                x_train.detach().cpu().numpy().copy(),
-                y_train.detach().cpu().numpy().copy()
-            )
+                    # Get parameters
+                    target_class = parameters.get("target_class")
+                    poison_fraction = parameters.get("percent_poison") / 100.0
+                    nb_poisoning = int(len(x_train) * poison_fraction)
 
-            attack= PoisoningAttackCleanLabelBackdoor(backdoor=backdoor,target=target_class,proxy_classifier=proxy.get_classifier(), pp_poison=poison_fraction,norm=2, eps=5,
-                                           eps_step=0.1, max_iter=200)
-            nb_poisoning = int(len(x_train) * poison_fraction)
+                    st.info(f"🧪 Creating {nb_poisoning} poisoned samples targeting class {target_class}...")
 
-            non_target_indices = np.where(y_train.cpu().numpy() != target_class)[0]
-            if len(non_target_indices) < nb_poisoning:
-                st.error(
-                    f"Not enough non-target samples. Only {len(non_target_indices)} available, need {nb_poisoning}.")
-                st.stop()
-            st.info(f"🧪 Creating {nb_poisoning} poisoned samples targeting class {target_class}...")
+                    # CORRECT: Create a separate proxy classifier (same architecture as main classifier)
+                    proxy_model = CNN().to(device)
+                    proxy_criterion = torch.nn.CrossEntropyLoss()
+                    proxy_optimizer = optim.Adam(proxy_model.parameters(), lr=0.001)
 
-            idx = np.random.choice(non_target_indices, nb_poisoning, replace=False)
+                    proxy_classifier = PyTorchClassifier(
+                        model=proxy_model,
+                        loss=proxy_criterion,
+                        optimizer=proxy_optimizer,
+                        input_shape=(1, 28, 28),
+                        nb_classes=10,
+                        clip_values=(-1, 1)
+                    )
 
-            x_poison = x_train[idx].cpu().numpy()
-            y_poison = y_train[idx].cpu().numpy()
-            from art.utils import to_categorical
-            y_poison_oh = to_categorical(y_poison, nb_classes=num_classes)
-            x_poisoned, y_poisoned = attack.poison(x_poison, y_poison_oh)
+                    # Train proxy classifier on clean training data
+                    st.info("🔄 Training proxy classifier...")
+                    proxy_classifier.fit(
+                        x_train.cpu().numpy(),
+                        y_train.cpu().numpy(),
+                        batch_size=128,
+                        nb_epochs=5
+                    )
 
-            # Convert back to torch tensors
-            x_poison_torch = torch.tensor(x_poisoned, dtype=torch.float32).to(device)
-            y_poison_labels = torch.tensor(y_poisoned.argmax(axis=1), dtype=torch.long).to(device)
+                    # Initialize clean-label attack with corrected parameters
+                    attack = PoisoningAttackCleanLabelBackdoor(
+                        backdoor=backdoor,
+                        target=target_class,
+                        proxy_classifier=proxy_classifier,  # Use the trained proxy
+                        pp_poison=poison_fraction,
+                        norm=2,
+                        eps=0.1,  # Much smaller epsilon for MNIST
+                        eps_step=0.01,  # Smaller step size
+                        max_iter=50  # Reduced iterations for faster execution
+                    )
 
-            # Combine clean + poisoned data
-            x_train_poisoned = torch.cat([x_train, x_poison_torch], dim=0)
-            y_train_poisoned = torch.cat([y_train, y_poison_labels], dim=0)
+                    # Select non-target samples to poison
+                    non_target_indices = np.where(y_train.cpu().numpy() != target_class)[0]
+                    if len(non_target_indices) < nb_poisoning:
+                        st.error(
+                            f"Not enough non-target samples. Only {len(non_target_indices)} available, need {nb_poisoning}.")
+                        st.stop()
 
-            # Retrain the classifier with poisoned data
-            classifier.fit(
-                x_train_poisoned.cpu().numpy(),
-                y_train_poisoned.cpu().numpy(),
-                batch_size=128,
-                nb_epochs=10
-            )
+                    # Randomly select samples to poison
+                    idx = np.random.choice(non_target_indices, nb_poisoning, replace=False)
+                    x_poison = x_train[idx].cpu().numpy()
+                    y_poison = y_train[idx].cpu().numpy()
 
-            # Test accuracy on clean data
-            clean_predictions = classifier.predict(x_test.cpu().numpy())
-            clean_acc = (clean_predictions.argmax(1) == y_test.cpu().numpy()).mean()
+                    # Convert to one-hot encoding for ART
+                    from art.utils import to_categorical
 
-            # Test backdoor success rate
-            mask_non_target = (y_test.cpu().numpy() != target_class)
-            x_test_subset = x_test[mask_non_target]
+                    y_poison_oh = to_categorical(y_poison, nb_classes=num_classes)
 
-            # Apply patch to test images
-            x_triggered = patch(patch_type, parameters, x_test_subset)
-            triggered_predictions = classifier.predict(x_triggered.cpu().numpy())
-            asr = (triggered_predictions.argmax(1) == target_class).mean()
+                    # Execute the attack
+                    st.info("⚔️ Executing clean-label attack...")
+                    x_poisoned, y_poisoned = attack.poison(x_poison, y_poison_oh)
 
-            # Display metrics
-            col1, col2 = st.columns(2)
-            with col1:
-                st.metric("Clean Test Accuracy", f"{clean_acc:.3f}")
-            with col2:
-                st.metric("Attack Success Rate (ASR)", f"{asr:.3f}")
+                    # Convert back to torch tensors
+                    x_poison_torch = torch.tensor(x_poisoned, dtype=torch.float32).to(device)
+                    y_poison_labels = torch.tensor(y_poisoned.argmax(axis=1), dtype=torch.long).to(device)
 
-            # Visualization
-            fig, axes = plt.subplots(2, 5, figsize=(15, 6))
+                    # Combine clean + poisoned data
+                    x_train_poisoned = torch.cat([x_train, x_poison_torch], dim=0)
+                    y_train_poisoned = torch.cat([y_train, y_poison_labels], dim=0)
 
-            for i in range(min(5, len(x_test_subset))):
-                # Original image
-                orig_img = x_test_subset[i].cpu().numpy().squeeze()
-                axes[0, i].imshow(orig_img, cmap='gray')
-                axes[0, i].set_title(f"Original\nTrue: {y_test[mask_non_target][i].item()}")
-                axes[0, i].axis('off')
+                    # Retrain the main classifier with poisoned data
+                    st.info("🔄 Retraining classifier with poisoned data...")
+                    classifier.fit(
+                        x_train_poisoned.cpu().numpy(),
+                        y_train_poisoned.cpu().numpy(),
+                        batch_size=128,
+                        nb_epochs=10
+                    )
 
-                # Triggered image
-                trig_img = x_triggered[i].cpu().numpy().squeeze()
-                pred_label = triggered_predictions[i].argmax()
-                color = 'green' if pred_label == target_class else 'red'
-                axes[1, i].imshow(trig_img, cmap='gray')
-                axes[1, i].set_title(f"Triggered\nPred: {pred_label}", color=color)
-                axes[1, i].axis('off')
+                    # Evaluate clean accuracy
+                    clean_predictions = classifier.predict(x_test.cpu().numpy())
+                    clean_acc = (clean_predictions.argmax(1) == y_test.cpu().numpy()).mean()
 
-            plt.tight_layout()
-            st.pyplot(fig)
+                    # Test backdoor success rate on non-target samples
+                    mask_non_target = (y_test.cpu().numpy() != target_class)
+                    x_test_subset = x_test[mask_non_target]
 
-            if asr > 0.8:
-                st.success(f"🎉 Attack successful! ASR: {asr:.1%}")
-            elif asr > 0.5:
-                st.warning(f"⚠️ Partial success. ASR: {asr:.1%}")
-            else:
-                st.error(f"❌ Attack failed. ASR: {asr:.1%}")
+                    if len(x_test_subset) == 0:
+                        st.error("No non-target samples in test set!")
+                        st.stop()
+
+                    # Apply trigger to test images
+                    x_triggered = patch(patch_type, parameters, x_test_subset)
+                    triggered_predictions = classifier.predict(x_triggered.cpu().numpy())
+                    asr = (triggered_predictions.argmax(1) == target_class).mean()
+
+                    # Display results
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.metric("Clean Test Accuracy", f"{clean_acc:.3f}")
+                    with col2:
+                        st.metric("Attack Success Rate (ASR)", f"{asr:.3f}")
+
+                    # Visualization
+                    fig, axes = plt.subplots(2, 5, figsize=(15, 6))
+
+                    num_display = min(5, len(x_test_subset))
+                    for i in range(num_display):
+                        # Original image
+                        orig_img = x_test_subset[i].cpu().numpy().squeeze()
+                        axes[0, i].imshow(orig_img, cmap='gray')
+                        axes[0, i].set_title(f"Original\nTrue: {y_test[mask_non_target][i].item()}")
+                        axes[0, i].axis('off')
+
+                        # Triggered image
+                        trig_img = x_triggered[i].cpu().numpy().squeeze()
+                        pred_label = triggered_predictions[i].argmax()
+                        color = 'green' if pred_label == target_class else 'red'
+                        axes[1, i].imshow(trig_img, cmap='gray')
+                        axes[1, i].set_title(f"Triggered\nPred: {pred_label}", color=color)
+                        axes[1, i].axis('off')
+
+                    # Hide unused subplots
+                    for i in range(num_display, 5):
+                        axes[0, i].axis('off')
+                        axes[1, i].axis('off')
+
+                    plt.tight_layout()
+                    st.pyplot(fig)
+
+                    # Success evaluation
+                    if asr > 0.8:
+                        st.success(f"🎉 Clean-label attack successful! ASR: {asr:.1%}")
+                    elif asr > 0.5:
+                        st.warning(f"⚠️ Partial success. ASR: {asr:.1%}")
+                    else:
+                        st.error(f"❌ Clean-label attack failed. ASR: {asr:.1%}")
+
+                except Exception as e:
+                    st.error(f"❌ Attack failed with error: {str(e)}")
+                    st.error("This could be due to optimization issues or parameter mismatches.")
