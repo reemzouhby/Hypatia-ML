@@ -689,15 +689,11 @@ If you pick **well-separated digits** (e.g., 0 vs 8), the attack will likely be 
     elif attack_type == "PoisoningAttackCleanLabelBackdoor":
             with st.spinner("⏳ Running " + attack_type + " attack... Please wait"):
                 try:
-                    # Create perturbation function (similar to your working Keras version)
-                    
-
-
                     # Get parameters
                     target_class_int = parameters.get("target_class")
                     poison_fraction = parameters.get("percent_poison") / 100.0
 
-                    # Convert target class to one-hot (KEY FIX!)
+                    # Convert target class to one-hot
                     target_class_onehot = np.zeros(num_classes)
                     target_class_onehot[target_class_int] = 1
 
@@ -714,12 +710,11 @@ If you pick **well-separated digits** (e.g., 0 vs 8), the attack will likely be 
                         proxy_classifier=classifier,
                         pp_poison=poison_fraction,
                         norm=2,
-                        eps=0.1,
+                        eps=0.5,
                         eps_step=0.01,
-                        max_iter=50
+                        max_iter=100
                     )
 
-                    # Convert PyTorch data to numpy for ART (following your Keras approach)
                     x_train_np = x_train.cpu().numpy()
                     y_train_np = y_train.cpu().numpy()
                     x_test_np = x_test.cpu().numpy()
@@ -735,7 +730,6 @@ If you pick **well-separated digits** (e.g., 0 vs 8), the attack will likely be 
                     nb_poisoning = int(len(x_train_np) * poison_fraction)
                     st.info(f"🧪 Creating {nb_poisoning} poisoned samples targeting class {target_class_int}...")
 
-                    # Find non-target samples (KEY FIX!)
                     non_target_mask = np.argmax(y_train_onehot, axis=1) != target_class_int
                     non_target_indices = np.where(non_target_mask)[0]
 
