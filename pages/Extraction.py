@@ -47,7 +47,7 @@ st.set_page_config(
 if 'session_id' not in st.session_state:
     st.session_state.session_id = str(uuid.uuid4())[:8]
 
-st.title(f"🔓 Extraction Attacks on MNIST (Session: {st.session_state.session_id})")
+st.title(f"🔓 Extraction Attacks ")
 st.markdown("---")
 
 
@@ -83,18 +83,10 @@ def clamp_nb_stolen(nb_stolen, total_len):
     return nb_stolen
 
 
-# --- Data & models with session isolation ---
 @st.cache_resource
 def load_mnist_model():
     try:
-        # Use a more robust path handling
-        model_path = "pages/mnist_model.h5"
-        if not os.path.exists(model_path):
-            model_path = "mnist_model.h5"  # Try alternative path
-        if not os.path.exists(model_path):
-            st.error(f"Model file not found at {model_path}")
-            return None
-        return load_model(model_path)
+        return load_model("pages/mnist_model.h5")
     except Exception as e:
         st.error(f"Error loading model: {e}")
         return None
