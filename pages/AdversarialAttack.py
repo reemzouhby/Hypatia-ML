@@ -39,16 +39,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Logos
-img_col1, img_col_empty, img_col2 = st.columns([1, 6, 1])
 
-with img_col1:
-    image1 = Image.open("pages/ulfg logo.png")
-    st.image(image1, width=100)
-
-with img_col2:
-    image2 = Image.open("pages/versifai_logo.png")
-    st.image(image2, width=100)
 
 # Title
 st.title("🛡️ Adversarial Machine Learning Attacks ")
