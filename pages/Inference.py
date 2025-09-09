@@ -22,12 +22,12 @@ from art.attacks.inference.model_inversion import MIFace
 warnings.filterwarnings('ignore')
 from art.utils import to_categorical
 st.set_page_config(
-    page_title="Inference Attacks on MNIST",
+    page_title="Inference Attacks Demo",
     page_icon="🕵️",
     layout="wide"
 )
 
-st.title(" 🕵️ Inference Attacks on MNIST")
+st.title(" 🕵️ Inference Attacks ")
 st.markdown("---")
 def evaluate_attack_results(overall_acc, members_acc, non_members_acc):
     col1, col2, col3 = st.columns(3)
@@ -72,7 +72,7 @@ def load_model():
     """Load model with caching"""
     try:
         from keras.models import load_model
-         model = load_model("pages/mnist_model.h5")
+        model = load_model("pages/mnist_model.h5")
 
         return model
     except Exception as e:
@@ -84,8 +84,8 @@ def load_model():
 def load_data():
 
     (train_images, train_labels), (test_images, test_labels) = mnist.load_data()
-    max_train_size = 14000
-    max_test_size = 7000
+    max_train_size = 5000
+    max_test_size = 1000
 
     train_images = train_images[:max_train_size]
     train_labels = train_labels[:max_train_size]
@@ -343,8 +343,8 @@ if run_button:
             if attack_mode == "MembershipInferenceBlackBox":
                 with st.spinner("⏳ Running " + attack_mode + " attack... Please wait"):
 
-                    attack_train_size = 500
-                    attack_test_size = 500
+                    attack_train_size = 100
+                    attack_test_size = 100
                     attack_args = {
                         "estimator": classifier,
                         "attack_model_type": param["attack_mode_type"],
@@ -377,8 +377,9 @@ if run_button:
             elif attack_mode == "MembershipInferenceBlackBoxRuleBased":
                 with st.spinner("⏳ Running " + attack_mode + " attack... Please wait"):
                     attack = MembershipInferenceBlackBoxRuleBased(classifier)
-                    train_idx = np.random.choice(len(train_images), size=5000, replace=False)
-                    test_idx = np.random.choice(len(test_images), size=5000, replace=False)
+                    test_idx = np.random.choice(len(test_images), size=min(5000, len(test_images)), replace=False)
+                    train_idx = np.random.choice(len(train_images), size=min(5000, len(train_images)), replace=False)
+
                     infer_train = attack.infer(train_images[train_idx], train_labels[train_idx])
                     infer_test = attack.infer(test_images[test_idx], test_labels[test_idx])
                     train_acc = np.mean(infer_train)  # Same as np.sum(infer_train) / len(infer_train)
@@ -405,8 +406,11 @@ if run_button:
                             max_queries=param["max_queries"]
                         )
 
-                    infer_train = attack.infer(train_images[:5000], train_labels[:5000])
-                    infer_test = attack.infer(test_images[:5000], test_labels[:5000])
+                    subset_train = min(200, len(train_images))
+                    subset_test = min(200, len(test_images))
+
+                    infer_train = attack.infer(train_images[:subset_train], train_labels[:subset_train])
+                    infer_test = attack.infer(test_images[:subset_test], test_labels[:subset_test])
 
                     train_acc = np.mean(infer_train)
                     test_acc = np.mean(infer_test == 0)
