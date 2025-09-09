@@ -377,8 +377,8 @@ if run_button:
             elif attack_mode == "MembershipInferenceBlackBoxRuleBased":
                 with st.spinner("⏳ Running " + attack_mode + " attack... Please wait"):
                     attack = MembershipInferenceBlackBoxRuleBased(classifier)
-                    test_idx = np.random.choice(len(test_images), size=min(5000, len(test_images)), replace=False)
-                    train_idx = np.random.choice(len(train_images), size=min(5000, len(train_images)), replace=False)
+                    test_idx = np.random.choice(len(test_images), size=min(500, len(test_images)), replace=False)
+                    train_idx = np.random.choice(len(train_images), size=min(500, len(train_images)), replace=False)
 
                     infer_train = attack.infer(train_images[train_idx], train_labels[train_idx])
                     infer_test = attack.infer(test_images[test_idx], test_labels[test_idx])
