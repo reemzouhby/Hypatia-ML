@@ -215,6 +215,7 @@ elif attack_type == "Knockoff Nets":
 run_button = st.button("🚀 Run Attack", type="primary")
 
 if run_button:
+    clear_memory()
     nb_stolen = clamp_nb_stolen(param.get("nb_stolen", 500), len(test_images))
 
     if attack_type == "CopyCatCNN":
