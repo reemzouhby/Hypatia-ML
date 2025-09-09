@@ -718,7 +718,7 @@ if run_button:
                         proxy_classifier=classifier,
                         pp_poison=poison_fraction,
                         norm=2,
-                        eps=parameters["advanced_eps"],  # Increased perturbation strength
+                        eps=parameters["advanced_eps"], 
                         eps_step=parameters["advanced_eps"] * parameters["advanced_step_size"],  # Proportional step size
                         max_iter=parameters["advanced_max_iter"]
                     )
@@ -746,7 +746,6 @@ if run_button:
                             f"Not enough non-target samples. Only {len(non_target_indices)} available, need {nb_poisoning}.")
                         st.stop()
 
-                    # Select samples to poison (can be from any class, like in your Keras version)
                     idx = np.random.choice(len(x_train_np), nb_poisoning, replace=False)
                     x_poison = x_train_np[idx]
                     y_poison = y_train_onehot[idx]
@@ -767,7 +766,7 @@ if run_button:
                     clean_predictions = classifier.predict(x_test_np)
                     clean_acc = (np.argmax(clean_predictions, axis=1) == np.argmax(y_test_onehot, axis=1)).mean()
 
-                    # Test backdoor success rate (following your Keras logic)
+                   
                     mask_non_target = np.argmax(y_test_onehot, axis=1) != target_class_int
                     x_test_subset = x_test_np[mask_non_target]
                     y_test_subset = y_test_onehot[mask_non_target]
@@ -788,7 +787,7 @@ if run_button:
                     with col2:
                         st.metric("Attack Success Rate (ASR)", f"{asr:.3f}")
 
-                    # Visualization (following your Keras plotting style)
+                    
                     fig, axes = plt.subplots(2, 10, figsize=(20, 4))
 
                     num_display = min(10, len(x_test_subset))
