@@ -28,11 +28,11 @@ tf.config.experimental.set_memory_growth(tf.config.list_physical_devices('GPU')[
 tf.keras.backend.clear_session()
 
 st.set_page_config(
-    page_title="Extraction Attacks Demo",
+    page_title="Extraction Attacks on MNIST",
     page_icon="🔓",
     layout="wide"
 )
-st.title("🔓 Extraction Attacks ")
+st.title("🔓 Extraction Attacks on MNIST")
 st.markdown("---")
 
 
@@ -55,11 +55,7 @@ def clamp_nb_stolen(nb_stolen, total_len):
     return nb_stolen
 
 
-def safe_evaluate(model_obj, x, y, verbose=0):
-    if x is None or len(x) == 0:
-        st.warning("No samples available for evaluation — skipping.")
-        return (np.nan, np.nan)
-    return model_obj.evaluate(x, y, verbose=verbose)
+
 
 
 # --- Data & models ---
@@ -236,8 +232,8 @@ if run_button:
             classifier_stolen = KerasClassifier(stolen_model, clip_values=(0, 1))
             classifier_stolen = attack.extract(thieved_classifier=classifier_stolen, x=x_steal)
             y_test_cat = to_categorical(test_labels[nb_stolen:], 10)
-            loss_org, acc_org = safe_evaluate(classifier.model, test_images[nb_stolen:], test_labels[nb_stolen:])
-            loss, acc = safe_evaluate(classifier_stolen._model, test_images[nb_stolen:], y_test_cat)
+            loss_org, acc_org = classifier.model.evaluate(classifier.model, test_images[nb_stolen:], test_labels[nb_stolen:])
+            loss, acc = classifier_stolen._model.evaluate(classifier_stolen._model, test_images[nb_stolen:], y_test_cat)
             org_pred = classifier.predict(test_images[nb_stolen:])
             stol_pred = classifier_stolen.predict(test_images[nb_stolen:])
             if len(org_pred.shape) > 1:
@@ -273,9 +269,9 @@ if run_button:
                                                delta_value_max=param["delta_value_max"]
                                                )
             y_test_cat = to_categorical(test_labels[:nb_stolen], 10)
-            loss_org, acc_org = safe_evaluate(classifier_target.model, test_images_flat[:nb_stolen],
+            loss_org, acc_org = classifier._model.evaluate(classifier_target.model, test_images_flat[:nb_stolen],
                                               test_labels[:nb_stolen])
-            loss, acc = safe_evaluate(classifier_stolen._model, test_images_flat[:nb_stolen], y_test_cat)
+            loss, acc = classifier_stolen._model.evaluate(classifier_stolen._model, test_images_flat[:nb_stolen], y_test_cat)
             st.write(f"Original Accuracy: {acc_org:.3f}, Stolen Accuracy: {acc:.3f}")
 
 
@@ -300,8 +296,8 @@ if run_button:
             classifier_stolen = process_knockoff_in_batches(attack, classifier_stolen, x_steal, y_steal)
 
             y_test_cat = to_categorical(test_labels[nb_stolen:], 10)
-            loss_org, acc_org = safe_evaluate(classifier.model, test_images[nb_stolen:], test_labels[nb_stolen:])
-            loss, acc = safe_evaluate(classifier_stolen._model, test_images[nb_stolen:], y_test_cat)
+            loss_org, acc_org = classifier._model.evaluate(classifier.model, test_images[nb_stolen:], test_labels[nb_stolen:])
+            loss, acc = classifier_stolen._model.evaluate(classifier_stolen._model, test_images[nb_stolen:], y_test_cat)
             org_pred = classifier.predict(test_images[nb_stolen:])
             stol_pred = classifier_stolen.predict(test_images[nb_stolen:])
             fidelity = np.mean(np.argmax(org_pred, axis=1) == np.argmax(stol_pred, axis=1))
