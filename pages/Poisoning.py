@@ -13,7 +13,7 @@ torch.set_num_threads(1)           # disable threading
 torch.multiprocessing.set_sharing_strategy("file_system")  # safer on Windows
 
 st.set_page_config(
-    page_title="Poisoning Attacks on MNIST",
+    page_title="Poisoning Attacks Demo",
     page_icon="☠️",
     layout="wide"
 )
@@ -208,7 +208,7 @@ def create_perturbation_function(patch_type, parameters):
 
     return perturbation_fn
 
-st.title("☠️ Poisoning Attacks on MNIST")
+st.title("☠️ Poisoning Attacks ")
 st.markdown("---")
 st.sidebar.header("⚔️ Attack Configuration")
 attack_mode = st.sidebar.radio(
@@ -321,6 +321,10 @@ elif attack_type == "FeatureCollisionAttack":
     parameters["percent_poison"] = st.sidebar.slider("Poison Percentage (%)", min_value=1, max_value=50, value=10)
 
 elif attack_type == "Poisoning SVM Attack":
+    st.info("""💡 Hint: The success of the poisoning attack depends on the chosen digits.
+    If you pick **similar-looking digits** (e.g., 1 vs 7, or 3 vs 5), the attack is usually more effective because the classifier’s decision boundary is less clear.
+    If you pick **well-separated digits** (e.g., 0 vs 8), the attack will likely be weaker.
+    """)
     st.sidebar.info("this attack work with binary classification so if u want to test it should choose 2 nb  ")
     parameters["nb1"]=st.sidebar.selectbox("choose nb1 ",options=list(range(10)))
     parameters["nb2"] = st.sidebar.selectbox("choose nb2 ", options=list(range(10)))
@@ -476,7 +480,7 @@ if run_button:
             axes = axes.flatten()
 
             successful_misclassifications = 0
-            for i in range(len(x_targets_test)):
+            for i in range(5):
                 axes[i].imshow(x_targets_test[i].cpu().numpy().squeeze(), cmap="gray")
                 true_class = target_class
                 pred_class = predicted_classes[i]
@@ -508,11 +512,9 @@ if run_button:
 
 
     elif attack_type == "Poisoning SVM Attack":
-        st.info("""💡 Hint: The success of the poisoning attack depends on the chosen digits.
-If you pick **similar-looking digits** (e.g., 1 vs 7, or 3 vs 5), the attack is usually more effective because the classifier’s decision boundary is less clear.
-If you pick **well-separated digits** (e.g., 0 vs 8), the attack will likely be weaker.
-""")
+
         with st.spinner("⏳ Running PoisonningSVM... Please wait"):
+
             # load data  from sklearn
             mnist = fetch_openml('mnist_784')
             X, y = mnist["data"], mnist["target"]
@@ -627,8 +629,8 @@ If you pick **well-separated digits** (e.g., 0 vs 8), the attack will likely be 
                 classifier=classifier,
                 percent_poison=percent_poison,
                 epsilon=epsilon,
-                max_trials=5,
-                max_epochs=100,
+                max_trials=3,
+                max_epochs=50,
                 learning_rate_schedule=([0.1, 0.01, 0.001], [20, 40, 45]),
                 batch_size=64,
                 clip_values=(-1.0, 1.0),
