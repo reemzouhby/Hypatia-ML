@@ -5,8 +5,6 @@
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.28-orange)
 [![ART](https://img.shields.io/badge/ART-Adversarial%20Robustness%20Toolbox-blue)](https://github.com/Trusted-AI/adversarial-robustness-toolbox)
 
-[![Live Demo](https://img.shields.io/badge/Live-Demo-blue?style=for-the-badge&logo=streamlit)](https://hypatia-ml-app.streamlit.app/)
-
 </div>
 
 ---
@@ -29,13 +27,6 @@ Named after **Hypatia of Alexandria**, the renowned ancient mathematician, astro
 
 ---
 
-## 🌐 Try HYPATIA Online
-
-**Live Demo:** [https://hypatia-ml-app.streamlit.app/](https://hypatia-ml-app.streamlit.app/)
-
-Experience the full power of adversarial testing without any installation required.
-
----
 
 ## 🚀 What HYPATIA Can Do
 
@@ -330,7 +321,8 @@ To contribute, please fork the repository, make your changes, and submit a pull 
 ## 🙏 Acknowledgments
 
 - **ART Team**: Adversarial Robustness Toolbox for attack implementations
-- **Versifai CEO**: Guidance and support during this project 
+- **Dr.Natasha AL Khatib**: Research guidance and supervision throughout this project
+
 
 ## 📞 Support
 
