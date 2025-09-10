@@ -155,7 +155,7 @@ if attack_type in ["CopyCatCNN", "Knockoff Nets"]:
     batch_size_fit = st.sidebar.slider("Batch Size (Training)", 16, 128, 32, 16)
     batch_size_query = st.sidebar.slider("Batch Size (Query)", 16, 128, 32, 16)
     nb_epochs = st.sidebar.slider("Training Epochs", 5, 20, 10)
-    nb_stolen = st.sidebar.slider("Number of Samples to Steal", 500, 5000, 2000, 500)
+    nb_stolen = st.sidebar.slider("Number of Samples to Steal", 500, 3000, 2000, 500)
     use_probability = st.sidebar.checkbox("Use Probability Output", value=True)
     
     if attack_type == "Knockoff Nets":
@@ -166,6 +166,18 @@ elif attack_type == "Functionally Equivalent Extraction":
     st.sidebar.subheader("⚡ FEE Parameters")
     st.sidebar.warning("⚠️ This attack can take a long time to complete.")
     num_neurons = st.sidebar.number_input("Number of Neurons", min_value=64, max_value=512, value=128, step=64)
+        with st.sidebar.expander("🔧 Advanced Parameters"):
+        param["delta_0"] = st.number_input("Delta 0 (Initial step size)", min_value=0.001, max_value=0.1, value=0.05,
+                                           step=0.001, format="%.3f")
+        param["fraction_true"] = st.number_input("Fraction True", min_value=0.1, max_value=0.9, value=0.3, step=0.1)
+        param["rel_diff_slope"] = st.number_input("Relative Diff Slope", min_value=1e-7, max_value=1e-3, value=1e-5,
+                                                  format="%.2e")
+        param["rel_diff_value"] = st.number_input("Relative Diff Value", min_value=1e-8, max_value=1e-4, value=1e-6,
+                                                  format="%.2e")
+        param["delta_init_value"] = st.number_input("Delta Init Value", min_value=0.01, max_value=1.0, value=0.1,
+                                                    step=0.01)
+        param["delta_value_max"] = st.number_input("Delta Value Max", min_value=10, max_value=100, value=50, step=10)
+
 
 # Run attack button
 if st.button("🚀 Run Attack", type="primary"):
@@ -312,13 +324,19 @@ if st.button("🚀 Run Attack", type="primary"):
                 fee_classifier = KerasClassifier(target_model, clip_values=(0, 1), use_logits=True)
                 
                 # Run FEE attack
-                attack = FunctionallyEquivalentExtraction(
-                    fee_classifier, 
-                    num_neurons=num_neurons
-                )
+                attack = FunctionallyEquivalentExtraction(fee_classifier, num_neurons=param["num_neurons"])
+        stolen_classifier = attack.extract(
+            test_images[5000:], test_labels[5000:],
+            delta_0=param["delta_0"],
+            fraction_true=param["fraction_true"],
+            rel_diff_slope=param["rel_diff_slope"],
+            rel_diff_value=param["rel_diff_value"],
+            delta_init_value=param["delta_init_value"],
+            delta_value_max=param["delta_value_max"]
+        )
                 
                 stolen_classifier = attack.extract(
-                    test_flat[1000:2000], test_labels[1000:2000]  # Use different data for extraction
+                    test_flat[1000:2000], test_labels[1000:2000]  
                 )
                 
                 # Evaluate stolen model
