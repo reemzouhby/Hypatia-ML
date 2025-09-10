@@ -135,9 +135,6 @@ def resource_manager():
             aggressive_memory_cleanup()
 
 
-
-
-
 def check_system_resources():
     """Check if system has enough resources"""
     resources = get_system_resources()
@@ -186,7 +183,7 @@ def load_data():
 
 
 @st.cache_data
-def load_external_dataset(dataset_name, max_samples=5000):  
+def load_external_dataset(dataset_name, max_samples=5000):
     try:
         with global_lock:
             if dataset_name == "CIFAR-10":
@@ -195,7 +192,7 @@ def load_external_dataset(dataset_name, max_samples=5000):
                 x_processed = np.array([cv2.resize(img, (28, 28)) for img in x_gray])
                 return x_processed.reshape(-1, 28, 28, 1) / 255.0
             elif dataset_name == "Fashion-MNIST":
-                (x_train, _), (x_test, _) = fashion_mnist.load_data() 
+                (x_train, _), (x_test, _) = fashion_mnist.load_data()
                 return x_test[:max_samples].reshape(-1, 28, 28, 1) / 255.0
     except Exception as e:
         st.error(f"Error loading external dataset: {e}")
@@ -215,7 +212,8 @@ def get_model(NUM_CLASSES, session_id=None):
                 Dense(NUM_CLASSES, activation='softmax')
             ], name=f"simple_model_{session_id}_{int(time.time())}")
 
-            model.compile(optimizer='adam',loss=tf.keras.losses.CategoricalCrossentropy(from_logits=False), metrics=['accuracy'])
+            model.compile(optimizer='adam', loss=tf.keras.losses.CategoricalCrossentropy(from_logits=False),
+                          metrics=['accuracy'])
 
             if 'temp_models' not in st.session_state:
                 st.session_state.temp_models = []
@@ -231,7 +229,7 @@ def get_model_FEE(session_id=None):
     try:
         with model_creation_lock:
             model = Sequential([
-                Dense(64, activation="relu", input_shape=(784,)),  
+                Dense(64, activation="relu", input_shape=(784,)),
                 Dense(10, activation="linear")
             ], name=f"fee_model_{session_id}_{int(time.time())}")
 
@@ -362,7 +360,7 @@ if run_button:
 
         try:
             aggressive_memory_cleanup()
-            nb_stolen = clamp_nb_stolen(param.get("nb_stolen", 500), len(test_images))
+            nb_stolen = param.get("nb_stolen", 500)
 
             model_func = get_model
 
@@ -421,19 +419,18 @@ if run_button:
                             y_steal = to_categorical(test_labels[:nb_stolen], 10)
                         else:
                             x_steal = load_external_dataset(steal_dataset, nb_stolen)
-                            y_steal=classifier.predict(x_steal)
+                            y_steal = classifier.predict(x_steal)
                             # Check if predictions are already probabilities or need conversion
                             if len(y_steal.shape) > 1 and y_steal.shape[1] == 10:
-                                 # Already in probability format
-                                  y_steal =y_steal
+                                # Already in probability format
+                                y_steal = y_steal
                             else:
-                               # Convert to categorical if needed
-                              y_steal = np.argmax(y_steal, axis=1) if len(y_steal.shape) > 1 else y_steal
-                              y_steal = to_categorical(y_steal, 10)
+                                # Convert to categorical if needed
+                                y_steal = np.argmax(y_steal, axis=1) if len(y_steal.shape) > 1 else y_steal
+                                y_steal = to_categorical(y_steal, 10)
                             if x_steal is None:
                                 st.error("Failed to load external dataset")
                                 st.stop()
-                            
 
                         stolen_model = model_func(10, st.session_state.session_id)
                         if stolen_model is None:
@@ -514,7 +511,7 @@ if run_button:
                         st.metric("Stolen Accuracy", f"{acc_stolen:.3f}", f"{acc_stolen * 100:.1f}%")
                     with col3:
                         st.metric("Fidelity", f"{fidelity}", f"{fidelity * 100:.1f}%")
-                
+
 
         except Exception as e:
             st.error(f"Attack failed: {str(e)}")
