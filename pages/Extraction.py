@@ -430,10 +430,11 @@ if run_button:
                             y_steal = to_categorical(test_labels[:nb_stolen], 10)
                         else:
                             x_steal = load_external_dataset(steal_dataset, nb_stolen)
+                            y_steall=classifier.predict(x_steal)
                             if x_steal is None:
                                 st.error("Failed to load external dataset")
                                 st.stop()
-                            y_steal = np.zeros((len(x_steal), 10))
+                            
 
                         stolen_model = model_func(10, st.session_state.session_id)
                         if stolen_model is None:
