@@ -349,7 +349,7 @@ elif attack_type == "Knockoff Nets":
     param["batch_size_fit"] = st.sidebar.slider("Batch Size (Training)", 4, 64, 8, 4)
     param["batch_size_query"] = st.sidebar.slider("Batch Size (Query)", 4, 64, 8, 4)
     param["nb_epochs"] = st.sidebar.slider("Training Epochs", 2, 10, 2)
-    param["nb_stolen"] = st.sidebar.slider("Number of Samples to Steal", 250, 1000, 500, 125)
+    param["nb_stolen"] = st.sidebar.slider("Number of Samples to Steal", 250, 2000, 500, 125)
     param["use_probability"] = st.sidebar.checkbox("Use Probability Output", value=True)
     param["sampling_strategy"] = st.sidebar.selectbox("Sampling Strategy", ["random", "adaptive"])
     param["reward"] = st.sidebar.selectbox("Reward Strategy", ["cert", "div", "loss", "all"])
