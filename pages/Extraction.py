@@ -213,9 +213,8 @@ def get_model(NUM_CLASSES, session_id=None):
     try:
         with model_creation_lock:
             model = Sequential([
-                Conv2D(16, (3, 3), activation='relu', padding='same', input_shape=(28, 28, 1)),
-                MaxPooling2D((2, 2)),
-                Conv2D(32, (3, 3), activation='relu', padding='same'),
+                Conv2D(32, (3, 3), activation='relu', padding='same', input_shape=(28, 28, 1)),
+                Conv2D(64, (3, 3), activation='relu', padding='same'),
                 MaxPooling2D((2, 2)),
                 Flatten(),
                 Dense(64, activation='relu'),
@@ -318,10 +317,10 @@ attack_type = st.sidebar.selectbox("Select Attack", options)
 param = {}
 if attack_type == "CopyCatCNN":
     steal_dataset = st.sidebar.selectbox("Dataset for Stealing", ["MNIST Test Set", "CIFAR-10", "Fashion-MNIST"])
-    param["batch_size_fit"] = st.sidebar.slider("Batch Size (Training)", 8, 64, 16, 8)
+    param["batch_size_fit"] = st.sidebar.slider("Batch Size (Training)", 16, 128, 32, 16)
     param["batch_size_query"] = st.sidebar.slider("Batch Size (Query)", 8, 64, 16, 8)
-    param["nb_epochs"] = st.sidebar.slider("Training Epochs", 2, 10, 2)
-    param["nb_stolen"] = st.sidebar.slider("Number of Samples to Steal", 500, 2000, 1000, 250)
+    param["nb_epochs"] = st.sidebar.slider("Training Epochs", 5, 20, 10)
+    param["nb_stolen"] = st.sidebar.slider("Number of Samples to Steal", 500, 5000, 1000, 500)
     param["use_probability"] = st.sidebar.checkbox("Use Probability Output", value=True)
 elif attack_type == "Functionally Equivalent Extraction":
     st.sidebar.subheader("⚡ Functionally Equivalent Extraction Parameters")
@@ -346,10 +345,10 @@ elif attack_type == "Functionally Equivalent Extraction":
 
 elif attack_type == "Knockoff Nets":
     steal_dataset = st.sidebar.selectbox("Dataset for Stealing", ["MNIST Test Set", "CIFAR-10", "Fashion-MNIST"])
-    param["batch_size_fit"] = st.sidebar.slider("Batch Size (Training)", 4, 64, 8, 4)
-    param["batch_size_query"] = st.sidebar.slider("Batch Size (Query)", 4, 64, 8, 4)
-    param["nb_epochs"] = st.sidebar.slider("Training Epochs", 2, 10, 2)
-    param["nb_stolen"] = st.sidebar.slider("Number of Samples to Steal", 250, 2000, 500, 125)
+    param["batch_size_fit"] = st.sidebar.slider("Batch Size (Training)", 16, 128, 32, 16)
+    param["batch_size_query"] = st.sidebar.slider("Batch Size (Query)", 8, 64, 16, 8)
+    param["nb_epochs"] = st.sidebar.slider("Training Epochs", 5, 20, 10)
+    param["nb_stolen"] = st.sidebar.slider("Number of Samples to Steal", 250, 5000, 500, 500)
     param["use_probability"] = st.sidebar.checkbox("Use Probability Output", value=True)
     param["sampling_strategy"] = st.sidebar.selectbox("Sampling Strategy", ["random", "adaptive"])
     param["reward"] = st.sidebar.selectbox("Reward Strategy", ["cert", "div", "loss", "all"])
@@ -431,6 +430,14 @@ if run_button:
                         else:
                             x_steal = load_external_dataset(steal_dataset, nb_stolen)
                             y_steal=classifier.predict(x_steal)
+                            # Check if predictions are already probabilities or need conversion
+                           if len(y_steal.shape) > 1 and y_steal.shape[1] == 10:
+                                 # Already in probability format
+                                  y_steal =y_steal
+                           else:
+                               # Convert to categorical if needed
+                              y_steal = np.argmax(y_steal, axis=1) if len(y_steal.shape) > 1 else y_steal
+                              y_steal = to_categorical(y_steal, 10)
                             if x_steal is None:
                                 st.error("Failed to load external dataset")
                                 st.stop()
