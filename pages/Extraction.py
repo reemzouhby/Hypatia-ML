@@ -217,14 +217,13 @@ def get_model(NUM_CLASSES, session_id=None):
                 Conv2D(64, (3, 3), activation='relu', padding='same'),
                 MaxPooling2D((2, 2)),
                 Flatten(),
-                Dense(64, activation='relu'),
+                Dense(128, activation='relu'),
                 Dropout(0.3),
                 Dense(NUM_CLASSES, activation='softmax')
             ], name=f"simple_model_{session_id}_{int(time.time())}")
 
             model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
-            # Track models for cleanup
             if 'temp_models' not in st.session_state:
                 st.session_state.temp_models = []
             st.session_state.temp_models.append(model)
@@ -431,10 +430,10 @@ if run_button:
                             x_steal = load_external_dataset(steal_dataset, nb_stolen)
                             y_steal=classifier.predict(x_steal)
                             # Check if predictions are already probabilities or need conversion
-                           if len(y_steal.shape) > 1 and y_steal.shape[1] == 10:
+                            if len(y_steal.shape) > 1 and y_steal.shape[1] == 10:
                                  # Already in probability format
                                   y_steal =y_steal
-                           else:
+                            else:
                                # Convert to categorical if needed
                               y_steal = np.argmax(y_steal, axis=1) if len(y_steal.shape) > 1 else y_steal
                               y_steal = to_categorical(y_steal, 10)
