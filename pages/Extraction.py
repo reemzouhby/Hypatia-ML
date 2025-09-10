@@ -430,7 +430,7 @@ if run_button:
                             y_steal = to_categorical(test_labels[:nb_stolen], 10)
                         else:
                             x_steal = load_external_dataset(steal_dataset, nb_stolen)
-                            y_steall=classifier.predict(x_steal)
+                            y_steal=classifier.predict(x_steal)
                             if x_steal is None:
                                 st.error("Failed to load external dataset")
                                 st.stop()
