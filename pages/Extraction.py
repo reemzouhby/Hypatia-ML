@@ -240,7 +240,7 @@ def get_model_FEE(session_id=None):
     try:
         with model_creation_lock:
             model = Sequential([
-                Dense(64, activation="relu", input_shape=(784,)),  # Reduced from 128
+                Dense(64, activation="relu", input_shape=(784,)),  
                 Dense(10, activation="linear")
             ], name=f"fee_model_{session_id}_{int(time.time())}")
 
@@ -318,9 +318,9 @@ attack_type = st.sidebar.selectbox("Select Attack", options)
 param = {}
 if attack_type == "CopyCatCNN":
     steal_dataset = st.sidebar.selectbox("Dataset for Stealing", ["MNIST Test Set", "CIFAR-10", "Fashion-MNIST"])
-    param["batch_size_fit"] = st.sidebar.slider("Batch Size (Training)", 8, 32, 16, 8)
-    param["batch_size_query"] = st.sidebar.slider("Batch Size (Query)", 8, 32, 16, 8)
-    param["nb_epochs"] = st.sidebar.slider("Training Epochs", 1, 5, 2)
+    param["batch_size_fit"] = st.sidebar.slider("Batch Size (Training)", 8, 64, 16, 8)
+    param["batch_size_query"] = st.sidebar.slider("Batch Size (Query)", 8, 64, 16, 8)
+    param["nb_epochs"] = st.sidebar.slider("Training Epochs", 2, 10, 2)
     param["nb_stolen"] = st.sidebar.slider("Number of Samples to Steal", 500, 2000, 1000, 250)
     param["use_probability"] = st.sidebar.checkbox("Use Probability Output", value=True)
 elif attack_type == "Functionally Equivalent Extraction":
@@ -346,9 +346,9 @@ elif attack_type == "Functionally Equivalent Extraction":
 
 elif attack_type == "Knockoff Nets":
     steal_dataset = st.sidebar.selectbox("Dataset for Stealing", ["MNIST Test Set", "CIFAR-10", "Fashion-MNIST"])
-    param["batch_size_fit"] = st.sidebar.slider("Batch Size (Training)", 4, 16, 8, 4)
-    param["batch_size_query"] = st.sidebar.slider("Batch Size (Query)", 4, 16, 8, 4)
-    param["nb_epochs"] = st.sidebar.slider("Training Epochs", 1, 3, 2)
+    param["batch_size_fit"] = st.sidebar.slider("Batch Size (Training)", 4, 64, 8, 4)
+    param["batch_size_query"] = st.sidebar.slider("Batch Size (Query)", 4, 64, 8, 4)
+    param["nb_epochs"] = st.sidebar.slider("Training Epochs", 2, 10, 2)
     param["nb_stolen"] = st.sidebar.slider("Number of Samples to Steal", 250, 1000, 500, 125)
     param["use_probability"] = st.sidebar.checkbox("Use Probability Output", value=True)
     param["sampling_strategy"] = st.sidebar.selectbox("Sampling Strategy", ["random", "adaptive"])
