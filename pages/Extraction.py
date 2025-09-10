@@ -135,12 +135,7 @@ def resource_manager():
             aggressive_memory_cleanup()
 
 
-def clamp_nb_stolen(nb_stolen, total_len):
-    if nb_stolen >= total_len:
-        st.warning(
-            f"Requested nb_stolen ({nb_stolen}) >= available test samples ({total_len}). Clamping to leave at least 1 sample.")
-        nb_stolen = max(0, total_len - 1)
-    return nb_stolen
+
 
 
 def check_system_resources():
@@ -191,19 +186,17 @@ def load_data():
 
 
 @st.cache_data
-def load_external_dataset(dataset_name, max_samples=2500):  # Reduced default
+def load_external_dataset(dataset_name, max_samples=5000):  
     try:
         with global_lock:
             if dataset_name == "CIFAR-10":
                 (x_train, _), (x_test, _) = cifar10.load_data()
-                x_combined = np.concatenate([x_train, x_test])[:max_samples]
-                x_gray = np.array([cv2.cvtColor(img, cv2.COLOR_RGB2GRAY) for img in x_combined])
+                x_gray = np.array([cv2.cvtColor(img, cv2.COLOR_RGB2GRAY) for img in x_test[:max_samples]])
                 x_processed = np.array([cv2.resize(img, (28, 28)) for img in x_gray])
                 return x_processed.reshape(-1, 28, 28, 1) / 255.0
             elif dataset_name == "Fashion-MNIST":
-                (x_train, _), (x_test, _) = fashion_mnist.load_data()
-                x_combined = np.concatenate([x_train, x_test])[:max_samples]
-                return x_combined.reshape(-1, 28, 28, 1) / 255.0
+                (x_train, _), (x_test, _) = fashion_mnist.load_data() 
+                return x_test[:max_samples].reshape(-1, 28, 28, 1) / 255.0
     except Exception as e:
         st.error(f"Error loading external dataset: {e}")
         return None
@@ -222,7 +215,7 @@ def get_model(NUM_CLASSES, session_id=None):
                 Dense(NUM_CLASSES, activation='softmax')
             ], name=f"simple_model_{session_id}_{int(time.time())}")
 
-            model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+            model.compile(optimizer='adam',loss=tf.keras.losses.CategoricalCrossentropy(from_logits=False), metrics=['accuracy'])
 
             if 'temp_models' not in st.session_state:
                 st.session_state.temp_models = []
@@ -317,7 +310,7 @@ param = {}
 if attack_type == "CopyCatCNN":
     steal_dataset = st.sidebar.selectbox("Dataset for Stealing", ["MNIST Test Set", "CIFAR-10", "Fashion-MNIST"])
     param["batch_size_fit"] = st.sidebar.slider("Batch Size (Training)", 16, 128, 32, 16)
-    param["batch_size_query"] = st.sidebar.slider("Batch Size (Query)", 8, 64, 16, 8)
+    param["batch_size_query"] = st.sidebar.slider("Batch Size (Query)", 16, 128, 32, 16)
     param["nb_epochs"] = st.sidebar.slider("Training Epochs", 5, 20, 10)
     param["nb_stolen"] = st.sidebar.slider("Number of Samples to Steal", 500, 5000, 1000, 500)
     param["use_probability"] = st.sidebar.checkbox("Use Probability Output", value=True)
@@ -345,7 +338,7 @@ elif attack_type == "Functionally Equivalent Extraction":
 elif attack_type == "Knockoff Nets":
     steal_dataset = st.sidebar.selectbox("Dataset for Stealing", ["MNIST Test Set", "CIFAR-10", "Fashion-MNIST"])
     param["batch_size_fit"] = st.sidebar.slider("Batch Size (Training)", 16, 128, 32, 16)
-    param["batch_size_query"] = st.sidebar.slider("Batch Size (Query)", 8, 64, 16, 8)
+    param["batch_size_query"] = st.sidebar.slider("Batch Size (Query)", 16, 128, 32, 16)
     param["nb_epochs"] = st.sidebar.slider("Training Epochs", 5, 20, 10)
     param["nb_stolen"] = st.sidebar.slider("Number of Samples to Steal", 250, 5000, 500, 500)
     param["use_probability"] = st.sidebar.checkbox("Use Probability Output", value=True)
