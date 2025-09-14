@@ -305,6 +305,8 @@ def run_attacks(attack_type, parameters):
 
             correct_clean = np.sum(pred_clean == y_test_small)
             correct_adv = np.sum(pred_adv == target_labels)
+            targeted_success_rate = correct_adv / subset_size
+
         else:
             # Evaluate against true labels
             loss_adv, acc_adv = model.evaluate(x_adv, y_test_small, verbose=0)
@@ -321,7 +323,7 @@ def run_attacks(attack_type, parameters):
             st.metric("Clean Accuracy", f"{acc_clean:.3f}", f"{acc_clean * 100:.1f}%")
         with col2:
             if parameters.get("targeted", False):
-                st.metric("Targeted Success Rate", f"{acc_adv:.3f}", f"{acc_adv * 100:.1f}%")
+                st.metric("Targeted Success Rate", f"{targeted_success_rate:.3f}", f"{targeted_success_rate * 100:.1f}%")
             else:
                 st.metric("Adversarial Accuracy", f"{acc_adv:.3f}", f"{acc_adv * 100:.1f}%")
         with col3:
