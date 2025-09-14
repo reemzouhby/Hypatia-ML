@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.png" alt="Hypatia_logo.jpg" width="200"/>
+</p>
+
 # 🧠 HYPATIA - Adversarial Machine Learning Testing Platform
 <div align="center">
 
