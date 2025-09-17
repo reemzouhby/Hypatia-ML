@@ -641,7 +641,7 @@ if run_button:
 
 
             # Choose trigger samples (from source_class)
-            x_trigger = x_test[y_test == source_class][:10].cpu().numpy()
+            x_trigger = x_test[y_test == source_class][:5].cpu().numpy()
             y_trigger = np.full(len(x_trigger), target_class)
 
             # Poison the training set
