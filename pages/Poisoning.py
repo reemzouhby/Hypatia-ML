@@ -648,7 +648,7 @@ if run_button:
                 )
 
                 # Choose trigger samples (from source_class)
-                x_trigger = x_test[y_test == source_class][:5].cpu().numpy()
+                x_trigger = x_train[y_train == source_class][:7000].cpu().numpy()
                 y_trigger = np.full(len(x_trigger), target_class)
 
                 # Poison the training set
@@ -671,8 +671,8 @@ if run_button:
                     nb_epochs=5
                 )
 
-                # Test on some soure class samples and check if it predict as target class 
-                idx = np.where(y_test.cpu().numpy() == source_class)[0][:20]
+                # Test on some soure class samples and check if it predict as target class
+                idx = np.where(y_test.cpu().numpy() == source_class)[0][:1000]
                 x_eval = x_test[idx]
                 y_eval = y_test[idx]
                 predictions = classifier.predict(x_eval.cpu().numpy())
@@ -682,11 +682,11 @@ if run_button:
                 fig, axes = plt.subplots(4, 5, figsize=(15, 8))
                 axes = axes.ravel()
                 successful = 0
-                for i in range(len(x_eval)):
+                for i in range(20):
                     axes[i].imshow(x_eval[i].cpu().numpy().squeeze(), cmap="gray")
                     true_class = y_eval[i].item()
                     pred_class = predicted_classes[i]
-                    if pred_class != true_class:
+                    if pred_class != true_class and pred_class==target_class:
                         successful += 1
                         color = 'green'
                         title = f"TRUE:{true_class} → PRED:{pred_class} ✓"
