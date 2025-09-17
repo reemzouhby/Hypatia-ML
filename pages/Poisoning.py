@@ -8,12 +8,7 @@ os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["NUMEXPR_NUM_THREADS"] = "1"
 os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
-import torch
 import multiprocessing
-try:
-    multiprocessing.set_start_method('fork')
-except RuntimeError:
-    pass
 st.set_page_config(
     page_title="Poisoning Attacks Demo",
     page_icon="☠️",
@@ -478,7 +473,7 @@ if run_button:
             predictions = classifier.predict(x_targets_test_np)
             predicted_classes = np.argmax(predictions, axis=1)
 
-            fig, axes = plt.subplots(1, 5, figsize=(12, 8))
+            fig, axes = plt.subplots(4, 5, figsize=(12, 8))
             axes = axes.flatten()
 
             successful_misclassifications = 0
@@ -622,80 +617,94 @@ if run_button:
             st.pyplot(fig)
     elif attack_type == "GradientMatchingAttack":
         with st.spinner("⏳ Running Gradient Matching Attack... Please wait"):
-            source_class = parameters.get("source_class", 7)
-            target_class = parameters.get("target_class", 2)
-            percent_poison = parameters.get("percent_poison", 10) / 100.0
-            epsilon = parameters.get("epsilon", 0.3)
+            import torch.utils.data
 
-            attack = GradientMatchingAttack(
-                classifier=classifier,
-                percent_poison=percent_poison,
-                epsilon=epsilon,
-                max_trials=3,
-                max_epochs=50,
-                learning_rate_schedule=([0.1, 0.01, 0.001], [20, 40, 45]),
-                batch_size=64,
-                clip_values=(-1.0, 1.0),
-                verbose=True
-            )
+            original_dataloader = torch.utils.data.DataLoader
 
 
-            # Choose trigger samples (from source_class)
-            x_trigger = x_test[y_test == source_class][:5].cpu().numpy()
-            y_trigger = np.full(len(x_trigger), target_class)
-
-            # Poison the training set
-            x_poison, y_poison = attack.poison(
-                x_trigger,
-                y_trigger,
-                x_train.cpu().numpy(),
-                y_train.cpu().numpy(),
-
-            )
-
-            # Convert back to torch tensors
-            x_train_poisoned = torch.from_numpy(x_poison).to(device)
-            y_train_poisoned = torch.from_numpy(y_poison).to(device)
-
-            # Retrain classifier with poisoned dataset
-            classifier.fit(
-                x_train_poisoned.cpu().numpy(),
-                y_train_poisoned.cpu().numpy(),
-                batch_size=128,
-                nb_epochs=5
-            )
+            def patched_dataloader(*args, **kwargs):
+                kwargs['num_workers'] = 0  # Force single process
+                kwargs['multiprocessing_context'] = None
+                return original_dataloader(*args, **kwargs)
 
 
-            # Test on some target class samples
-            idx = np.where(y_test.cpu().numpy() == source_class)[0][:20]
-            x_eval = x_test[idx]
-            y_eval = y_test[idx]
-            predictions = classifier.predict(x_eval.cpu().numpy())
-            predicted_classes = predictions.argmax(1)
+            torch.utils.data.DataLoader = patched_dataloader
 
-            # Visualization
-            fig, axes = plt.subplots(4, 5, figsize=(15, 8))
-            axes = axes.ravel()
-            successful = 0
-            for i in range(len(x_eval)):
-                axes[i].imshow(x_eval[i].cpu().numpy().squeeze(), cmap="gray")
-                true_class = y_eval[i].item()
-                pred_class = predicted_classes[i]
-                if pred_class != true_class:
-                    successful += 1
-                    color = 'green'
-                    title = f"TRUE:{true_class} → PRED:{pred_class} ✓"
-                else:
-                    color = 'red'
-                    title = f"TRUE:{true_class} → PRED:{pred_class} ✗"
-                axes[i].set_title(title, color=color, fontsize=9)
-                axes[i].axis("off")
+            try:
+                source_class = parameters.get("source_class", 7)
+                target_class = parameters.get("target_class", 2)
+                percent_poison = parameters.get("percent_poison", 10) / 100.0
+                epsilon = parameters.get("epsilon", 0.3)
 
-            plt.tight_layout()
-            st.pyplot(fig)
+                attack = GradientMatchingAttack(
+                    classifier=classifier,
+                    percent_poison=percent_poison,
+                    epsilon=epsilon,
+                    max_trials=1,
+                    max_epochs=20,
+                    batch_size=32,
+                    clip_values=(-1.0, 1.0),
+                    verbose=False
+                )
 
-            asr = successful / len(x_eval)
-            st.metric("Attack Success Rate (ASR)", f"{asr:.2%}")
+                # Choose trigger samples (from source_class)
+                x_trigger = x_test[y_test == source_class][:5].cpu().numpy()
+                y_trigger = np.full(len(x_trigger), target_class)
+
+                # Poison the training set
+                x_poison, y_poison = attack.poison(
+                    x_trigger,
+                    y_trigger,
+                    x_train.cpu().numpy(),
+                    y_train.cpu().numpy(),
+                )
+
+                # Convert back to torch tensors
+                x_train_poisoned = torch.from_numpy(x_poison).to(device)
+                y_train_poisoned = torch.from_numpy(y_poison).to(device)
+
+                # Retrain classifier with poisoned dataset
+                classifier.fit(
+                    x_train_poisoned.cpu().numpy(),
+                    y_train_poisoned.cpu().numpy(),
+                    batch_size=128,
+                    nb_epochs=5
+                )
+
+                # Test on some soure class samples and check if it predict as target class 
+                idx = np.where(y_test.cpu().numpy() == source_class)[0][:20]
+                x_eval = x_test[idx]
+                y_eval = y_test[idx]
+                predictions = classifier.predict(x_eval.cpu().numpy())
+                predicted_classes = predictions.argmax(1)
+
+                # Visualization
+                fig, axes = plt.subplots(4, 5, figsize=(15, 8))
+                axes = axes.ravel()
+                successful = 0
+                for i in range(len(x_eval)):
+                    axes[i].imshow(x_eval[i].cpu().numpy().squeeze(), cmap="gray")
+                    true_class = y_eval[i].item()
+                    pred_class = predicted_classes[i]
+                    if pred_class != true_class:
+                        successful += 1
+                        color = 'green'
+                        title = f"TRUE:{true_class} → PRED:{pred_class} ✓"
+                    else:
+                        color = 'red'
+                        title = f"TRUE:{true_class} → PRED:{pred_class} ✗"
+                    axes[i].set_title(title, color=color, fontsize=9)
+                    axes[i].axis("off")
+
+                plt.tight_layout()
+                st.pyplot(fig)
+
+                asr = successful / len(x_eval)
+                st.metric("Attack Success Rate (ASR)", f"{asr:.2%}")
+
+            finally:
+                # Restore original DataLoader
+                torch.utils.data.DataLoader = original_dataloader
     elif attack_type == "PoisoningAttackCleanLabelBackdoor":
             with st.spinner("⏳ Running " + attack_type + " attack... Please wait"):
                 try:
@@ -720,7 +729,7 @@ if run_button:
                         proxy_classifier=classifier,
                         pp_poison=poison_fraction,
                         norm=2,
-                        eps=parameters["advanced_eps"], 
+                        eps=parameters["advanced_eps"],  # Increased perturbation strength
                         eps_step=parameters["advanced_eps"] * parameters["advanced_step_size"],  # Proportional step size
                         max_iter=parameters["advanced_max_iter"]
                     )
@@ -748,6 +757,7 @@ if run_button:
                             f"Not enough non-target samples. Only {len(non_target_indices)} available, need {nb_poisoning}.")
                         st.stop()
 
+                    # Select samples to poison (can be from any class, like in your Keras version)
                     idx = np.random.choice(len(x_train_np), nb_poisoning, replace=False)
                     x_poison = x_train_np[idx]
                     y_poison = y_train_onehot[idx]
@@ -768,7 +778,7 @@ if run_button:
                     clean_predictions = classifier.predict(x_test_np)
                     clean_acc = (np.argmax(clean_predictions, axis=1) == np.argmax(y_test_onehot, axis=1)).mean()
 
-                   
+                    # Test backdoor success rate (following your Keras logic)
                     mask_non_target = np.argmax(y_test_onehot, axis=1) != target_class_int
                     x_test_subset = x_test_np[mask_non_target]
                     y_test_subset = y_test_onehot[mask_non_target]
@@ -789,7 +799,7 @@ if run_button:
                     with col2:
                         st.metric("Attack Success Rate (ASR)", f"{asr:.3f}")
 
-                    
+                    # Visualization (following your Keras plotting style)
                     fig, axes = plt.subplots(2, 10, figsize=(20, 4))
 
                     num_display = min(10, len(x_test_subset))
