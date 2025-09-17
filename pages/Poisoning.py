@@ -11,6 +11,8 @@ os.environ["OPENBLAS_NUM_THREADS"] = "1"
 import torch
 torch.set_num_threads(1)           # disable threading
 torch.multiprocessing.set_sharing_strategy("file_system")  # safer on Windows
+torch.multiprocessing.set_start_method('spawn', force=True)
+torch.multiprocessing.set_sharing_strategy("file_system")
 
 st.set_page_config(
     page_title="Poisoning Attacks Demo",
@@ -476,7 +478,7 @@ if run_button:
             predictions = classifier.predict(x_targets_test_np)
             predicted_classes = np.argmax(predictions, axis=1)
 
-            fig, axes = plt.subplots(4, 5, figsize=(12, 8))
+            fig, axes = plt.subplots(1, 5, figsize=(12, 8))
             axes = axes.flatten()
 
             successful_misclassifications = 0
@@ -639,7 +641,7 @@ if run_button:
 
 
             # Choose trigger samples (from source_class)
-            x_trigger = x_test[y_test == source_class][:5].cpu().numpy()
+            x_trigger = x_test[y_test == source_class][:20].cpu().numpy()
             y_trigger = np.full(len(x_trigger), target_class)
 
             # Poison the training set
@@ -665,7 +667,7 @@ if run_button:
 
 
             # Test on some target class samples
-            idx = np.where(y_test.cpu().numpy() == target_class)[0][:20]
+            idx = np.where(y_test.cpu().numpy() == source_class)[0][:20]
             x_eval = x_test[idx]
             y_eval = y_test[idx]
             predictions = classifier.predict(x_eval.cpu().numpy())
