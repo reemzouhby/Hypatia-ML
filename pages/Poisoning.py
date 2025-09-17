@@ -9,11 +9,11 @@ os.environ["NUMEXPR_NUM_THREADS"] = "1"
 os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
 import torch
-torch.set_num_threads(1)           # disable threading
-torch.multiprocessing.set_sharing_strategy("file_system")  # safer on Windows
-torch.multiprocessing.set_start_method('spawn', force=True)
-torch.multiprocessing.set_sharing_strategy("file_system")
-
+import multiprocessing
+try:
+    multiprocessing.set_start_method('fork')
+except RuntimeError:
+    pass
 st.set_page_config(
     page_title="Poisoning Attacks Demo",
     page_icon="☠️",
